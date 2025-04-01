@@ -1,10 +1,10 @@
 // src/app/page.js
-"use client"; // Mark as Client Component since Navbar uses useSession
+"use client";
 
 import Link from 'next/link';
-import Navbar from '../components/Navbar'; // Import Navbar
-import Footer from '../components/Footer'; // Import Footer
-import styles from '../styles/Home.module.css'; // Assuming you're using the CSS module from earlier
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
+import styles from '../styles/Home.module.css';
 
 export default function Home() {
   return (
@@ -40,19 +40,19 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="bg-white p-6 rounded-lg shadow-lg text-center">
                 <p className="text-lg italic mb-4" style={{ color: '#4a5568' }}>
-                  "PosterCraft made designing my event flyer so easy! The templates are beautiful and the editor is super intuitive."
+                  “PosterCraft made designing my event flyer so easy! The templates are beautiful and the editor is super intuitive.”
                 </p>
                 <p className="font-semibold" style={{ color: '#3182ce' }}>- Sarah M.</p>
               </div>
               <div className="bg-white p-6 rounded-lg shadow-lg text-center">
                 <p className="text-lg italic mb-4" style={{ color: '#4a5568' }}>
-                  "I upgraded to the Premium plan and it was worth every penny. The advanced tools saved me so much time!"
+                  “I upgraded to the Premium plan and it was worth every penny. The advanced tools saved me so much time!”
                 </p>
                 <p className="font-semibold" style={{ color: '#3182ce' }}>- John D.</p>
               </div>
               <div className="bg-white p-6 rounded-lg shadow-lg text-center">
                 <p className="text-lg italic mb-4" style={{ color: '#4a5568' }}>
-                  "The drag-and-drop editor is a game-changer. I created a professional poster in minutes!"
+                  “The drag-and-drop editor is a game-changer. I created a professional poster in minutes!”
                 </p>
                 <p className="font-semibold" style={{ color: '#3182ce' }}>- Emily R.</p>
               </div>

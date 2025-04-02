@@ -3,6 +3,7 @@
 
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
+import Link from 'next/link'; // Add this import
 import Canvas from '../../components/Canvas';
 import Toolbar from '../../components/Toolbar';
 import TemplateSelector from '../../components/TemplateSelector';
@@ -24,7 +25,6 @@ export default function Design() {
       setElements(templateElements);
       setHistory([templateElements]);
       setHistoryIndex(0);
-      // Clear the selected template from localStorage to prevent reloading on refresh
       localStorage.removeItem('selectedTemplate');
     }
   }, []);
@@ -84,7 +84,11 @@ export default function Design() {
   };
 
   if (status === 'loading') return <p>Loading...</p>;
-  if (!session) return <p className="text-center py-20">Please <a href="/api/auth/signin" className="text-primary">sign in</a> to access the design editor.</p>;
+  if (!session) return (
+    <p className="text-center py-20">
+      Please <Link href="/api/auth/signin" className="text-primary">sign in</Link> to access the design editor.
+    </p>
+  );
 
   return (
     <div className="p-4">

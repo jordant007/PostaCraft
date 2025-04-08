@@ -50,7 +50,7 @@ export default function Navbar() {
         <Link href="/templates" className="hover:text-gray-300 transition-colors">
           Templates
         </Link>
-        <Link href="/design" className="hover:text-gray-300 transition-colors">
+        <Link href="/design/start" className="hover:text-gray-300 transition-colors">
           Design
         </Link>
         <Link href="/pricing" className="hover:text-gray-300 transition-colors">
@@ -92,7 +92,7 @@ export default function Navbar() {
           Templates
         </Link>
         <Link
-          href="/design"
+          href="/design/start"
           className="hover:text-gray-300 transition-colors"
           onClick={toggleMobileMenu}
         >

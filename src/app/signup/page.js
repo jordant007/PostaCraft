@@ -30,9 +30,15 @@ export default function SignUp() {
     if (res.error) {
       setError(res.error);
     } else {
-      setSuccess('Registration successful! Redirecting...');
-      setTimeout(() => router.push('/'), 2000); // Redirect to home page after sign-up
+      setSuccess('Registration successful! Redirecting to sign-in page...');
+      setTimeout(() => router.push(`/signin?email=${encodeURIComponent(email)}`), 2000);
     }
+  };
+
+  const handleGoogleSignUp = async () => {
+    setError('');
+    setSuccess('');
+    await signIn('google', { callbackUrl: `/signin` });
   };
 
   return (
@@ -98,14 +104,25 @@ export default function SignUp() {
             type="submit"
             className="w-full p-3 rounded-lg font-semibold border-4"
             style={{
-              backgroundColor: '#3182ce', // Blue background
-              color: '#ffffff', // White text
-              borderColor: '#ff0000', // Red border for debugging
+              backgroundColor: '#3182ce',
+              color: '#ffffff',
+              borderColor: '#ff0000',
             }}
           >
             Sign Up
           </button>
         </form>
+        <button
+          onClick={handleGoogleSignUp}
+          className="w-full mt-4 p-3 rounded-lg font-semibold border-4"
+          style={{
+            backgroundColor: '#1a202c',
+            color: '#ffffff',
+            borderColor: '#ff0000',
+          }}
+        >
+          Sign Up with Google
+        </button>
         <p className="text-center mt-4" style={{ color: '#4a5568' }}>
           Already have an account?{' '}
           <Link href="/signin" className="underline" style={{ color: '#3182ce' }}>

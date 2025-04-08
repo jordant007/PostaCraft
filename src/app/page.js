@@ -13,7 +13,7 @@ export default function Home() {
         <section className={styles.hero}>
           <h1 className={styles.heroTitle}>Welcome to PosterCraft</h1>
           <p className={styles.heroSubtitle}>Design stunning event flyers and business posters with ease.</p>
-          <Link href="/design" className={styles.ctaButton}>Start Designing</Link>
+          <Link href="/design/start" className={styles.ctaButton}>Start Designing</Link>
         </section>
 
         <section className={styles.features}>
@@ -71,7 +71,7 @@ export default function Home() {
             </p>
             <div className="flex justify-center gap-4">
               <Link
-                href="/design"
+                href="/design/start"
                 className="inline-block px-6 py-3 rounded-lg font-semibold"
                 style={{ backgroundColor: '#ffffff', color: '#3182ce' }}
               >

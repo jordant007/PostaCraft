@@ -1,22 +1,34 @@
 // src/app/signin/page.js
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function SignIn() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [welcomeMessage, setWelcomeMessage] = useState('');
   const router = useRouter();
+
+  // Pre-fill email from query parameter and set welcome message
+  useEffect(() => {
+    const emailFromQuery = searchParams.get('email');
+    if (emailFromQuery) {
+      setEmail(decodeURIComponent(emailFromQuery));
+      setWelcomeMessage('Welcome! Please sign in with your new account.');
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setWelcomeMessage('');
 
     const res = await signIn('credentials', {
       redirect: false,
@@ -29,11 +41,14 @@ export default function SignIn() {
       setError(res.error);
     } else {
       setSuccess('Sign-in successful! Redirecting...');
-      setTimeout(() => router.push('/'), 2000); // Redirect to home page
+      setTimeout(() => router.push('/'), 2000);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    setError('');
+    setSuccess('');
+    setWelcomeMessage('');
     await signIn('google', { callbackUrl: '/' });
   };
 
@@ -43,6 +58,11 @@ export default function SignIn() {
         <h1 className="text-3xl font-bold text-center mb-6" style={{ color: '#1a202c' }}>
           Sign In
         </h1>
+        {welcomeMessage && (
+          <p className="text-center mb-4" style={{ color: '#38a169' }}>
+            {welcomeMessage}
+          </p>
+        )}
         {error && (
           <p className="text-center mb-4" style={{ color: '#e53e3e' }}>
             {error}
@@ -86,9 +106,9 @@ export default function SignIn() {
             type="submit"
             className="w-full p-3 rounded-lg font-semibold border-4"
             style={{
-              backgroundColor: '#3182ce', // Blue background
-              color: '#ffffff', // White text
-              borderColor: '#ff0000', // Red border for debugging
+              backgroundColor: '#3182ce',
+              color: '#ffffff',
+              borderColor: '#ff0000',
             }}
           >
             Sign In
@@ -98,9 +118,9 @@ export default function SignIn() {
           onClick={handleGoogleSignIn}
           className="w-full mt-4 p-3 rounded-lg font-semibold border-4"
           style={{
-            backgroundColor: '#1a202c', // Dark gray background
-            color: '#ffffff', // White text
-            borderColor: '#ff0000', // Red border for debugging
+            backgroundColor: '#1a202c',
+            color: '#ffffff',
+            borderColor: '#ff0000',
           }}
         >
           Sign In with Google

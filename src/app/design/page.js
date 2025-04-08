@@ -1,153 +1,1091 @@
 // src/app/design/page.js
 "use client";
 
-import { useSession } from 'next-auth/react';
-import { useState, useEffect } from 'react';
-import Link from 'next/link'; // Add this import
-import Canvas from '../../components/Canvas';
-import Toolbar from '../../components/Toolbar';
-import TemplateSelector from '../../components/TemplateSelector';
+import { useSession, signIn } from 'next-auth/react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { templates } from '../../components/TemplateSelector';
+import { fabric } from 'fabric';
 
 export default function Design() {
   const { data: session, status } = useSession();
-  const [elements, setElements] = useState([]);
-  const [designs, setDesigns] = useState([]);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const canvasRef = useRef(null);
+  const [canvas, setCanvas] = useState(null);
+  const [text, setText] = useState('');
   const [selectedElement, setSelectedElement] = useState(null);
-  const [history, setHistory] = useState([[]]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-  const [backgroundColor, setBackgroundColor] = useState('#f0f0f0');
+  const [backgroundColor, setBackgroundColor] = useState('#ffffff');
+  const [showGrid, setShowGrid] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [activeTab, setActiveTab] = useState('Templates');
+  const [designCategory, setDesignCategory] = useState('Poster Flyer Letter');
+  const [canvasSize, setCanvasSize] = useState(null);
+  const [zoom, setZoom] = useState(0.5);
+  const [uploadedImages, setUploadedImages] = useState([]);
+  const [customDimensions, setCustomDimensions] = useState({ width: 816, height: 1056 });
+  const [showCustomDimensions, setShowCustomDimensions] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isCanvasRefReady, setIsCanvasRefReady] = useState(false);
 
-  // Load selected template from localStorage on mount
+  const designCategories = {
+    'Poster Flyer Letter': { width: 816, height: 1056 },
+    'Instagram Reel Post': { width: 1080, height: 1920 },
+    'Event Flyer': { width: 800, height: 1200 },
+    'Business Poster': { width: 800, height: 1200 },
+    'Social Media Graphic': { width: 1080, height: 1080 },
+  };
+
+  const fontFamilies = ['Arial', 'Roboto', 'Times New Roman', 'Helvetica', 'Georgia'];
+
+  // Handle redirect if no category is specified
   useEffect(() => {
-    const selectedTemplate = localStorage.getItem('selectedTemplate');
-    if (selectedTemplate) {
-      const templateElements = JSON.parse(selectedTemplate);
-      setElements(templateElements);
-      setHistory([templateElements]);
-      setHistoryIndex(0);
-      localStorage.removeItem('selectedTemplate');
+    const category = searchParams.get('category');
+    if (!category && status !== 'loading') {
+      router.replace('/design/start');
+    }
+  }, [searchParams, router, status]);
+
+  // Set category and canvas size
+  useEffect(() => {
+    const category = searchParams.get('category') || 'Poster Flyer Letter';
+    setDesignCategory(category);
+
+    let size;
+    if (category === 'Custom') {
+      setShowCustomDimensions(true);
+      size = customDimensions;
+    } else {
+      setShowCustomDimensions(false);
+      size = designCategories[category] || { width: 816, height: 1056 };
+    }
+    setCanvasSize(size);
+  }, [searchParams, customDimensions]);
+
+  // Track when canvasRef.current is ready
+  useEffect(() => {
+    if (canvasRef.current) {
+      setIsCanvasRefReady(true);
     }
   }, []);
 
+  // Initialize canvas when canvasRef.current and canvasSize are available
   useEffect(() => {
-    if (session) {
-      fetch('/api/designs')
-        .then((res) => res.json())
-        .then((data) => setDesigns(data))
-        .catch((err) => console.error('Error fetching designs:', err));
+    if (!fabric || !fabric.Canvas || !isCanvasRefReady || !canvasSize?.width || !canvasSize?.height) {
+      console.log('Skipping canvas initialization due to missing dependencies:', {
+        fabric: !!fabric,
+        fabricCanvas: fabric?.Canvas,
+        canvasRef: !!canvasRef.current,
+        isCanvasRefReady,
+        canvasSize,
+      });
+      return;
     }
-  }, [session]);
 
-  const addToHistory = (newElements) => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(newElements);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
+    const fabricCanvas = new fabric.Canvas(canvasRef.current, {
+      height: canvasSize.height,
+      width: canvasSize.width,
+      backgroundColor: '#ffffff',
+      selection: true,
+      preserveObjectStacking: true,
+    });
+
+    const savedTemplate = localStorage.getItem('selectedTemplate');
+    console.log('Saved template from localStorage:', savedTemplate);
+    if (savedTemplate) {
+      try {
+        const elements = JSON.parse(savedTemplate);
+        console.log('Parsed template elements:', elements);
+        loadTemplate({ elements });
+      } catch (error) {
+        console.error('Error parsing saved template:', error);
+        localStorage.removeItem('selectedTemplate');
+      }
+    }
+
+    setCanvas(fabricCanvas);
+
+    fabricCanvas.on('selection:created', (e) => {
+      setSelectedElement(e.target);
+    });
+    fabricCanvas.on('selection:updated', (e) => {
+      setSelectedElement(e.target);
+    });
+    fabricCanvas.on('selection:cleared', () => {
+      setSelectedElement(null);
+    });
+
+    fabricCanvas.on('object:modified', () => {
+      const state = JSON.stringify(fabricCanvas.toJSON());
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(state);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+    });
+
+    setIsLoading(false);
+
+    return () => {
+      // Safely dispose of the canvas
+      if (fabricCanvas && !fabricCanvas._disposed) {
+        try {
+          fabricCanvas.dispose();
+          fabricCanvas._disposed = true; // Mark as disposed to prevent double disposal
+        } catch (error) {
+          console.error('Error disposing canvas:', error);
+        }
+      }
+      setCanvas(null); // Clear the canvas state
+    };
+  }, [canvasSize, isCanvasRefReady]);
+
+  // Update canvas background color
+  useEffect(() => {
+    if (canvas) {
+      console.log('Updating background color to:', backgroundColor);
+      canvas.backgroundColor = backgroundColor;
+      canvas.renderAll();
+    }
+  }, [backgroundColor, canvas]);
+
+  const handleCategoryChange = (category) => {
+    setDesignCategory(category);
+    if (category === 'Custom') {
+      setShowCustomDimensions(true);
+    } else {
+      setShowCustomDimensions(false);
+      const size = designCategories[category] || { width: 816, height: 1056 };
+      setCanvasSize(size);
+    }
+    localStorage.removeItem('selectedTemplate');
+  };
+
+  const handleCustomDimensionsChange = () => {
+    setCanvasSize({ width: customDimensions.width, height: customDimensions.height });
+    setShowCustomDimensions(false);
+  };
+
+  const addText = (style = 'Body') => {
+    if (!canvas || !fabric) {
+      console.error('Cannot add text: canvas or fabric not initialized');
+      return;
+    }
+    const styles = {
+      Heading: { fontSize: 40, fontWeight: 'bold', textAlign: 'center' },
+      Subheading: { fontSize: 30, fontWeight: 'normal', textAlign: 'center' },
+      Body: { fontSize: 20, fontWeight: 'normal', textAlign: 'left' },
+    };
+    const textStyle = styles[style] || styles.Body;
+    const textObj = new fabric.Textbox(text || 'Enter text', {
+      left: 100,
+      top: 100,
+      fontSize: textStyle.fontSize,
+      fontWeight: textStyle.fontWeight,
+      textAlign: textStyle.textAlign,
+      fill: '#000000',
+      fontFamily: 'Arial',
+      editable: true,
+    });
+    canvas.add(textObj);
+    setText('');
+    canvas.setActiveObject(textObj);
+    canvas.renderAll();
+  };
+
+  const addImage = (e) => {
+    if (!canvas || !fabric) {
+      console.error('Cannot add image: canvas or fabric not initialized');
+      return;
+    }
+    const file = e.target.files[0];
+    if (!file) {
+      console.error('No file selected');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (f) => {
+      const data = f.target.result;
+      fabric.Image.fromURL(data, (img) => {
+        img.scale(0.5);
+        img.set({ left: 100, top: 100 });
+        canvas.add(img);
+        canvas.setActiveObject(img);
+        canvas.renderAll();
+        setUploadedImages([...uploadedImages, data]);
+      }, (err) => {
+        console.error('Error loading image:', err);
+      });
+    };
+    reader.onerror = (err) => {
+      console.error('Error reading file:', err);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const addUploadedImage = (src) => {
+    if (!canvas || !fabric) {
+      console.error('Cannot add uploaded image: canvas or fabric not initialized');
+      return;
+    }
+    fabric.Image.fromURL(src, (img) => {
+      img.scale(0.5);
+      img.set({ left: 100, top: 100 });
+      canvas.add(img);
+      canvas.setActiveObject(img);
+      canvas.renderAll();
+    }, (err) => {
+      console.error('Error loading uploaded image:', err);
+    });
+  };
+
+  const addShape = (shapeType) => {
+    if (!canvas || !fabric) {
+      console.error('Cannot add shape: canvas or fabric not initialized');
+      return;
+    }
+    let shape;
+    if (shapeType === 'rectangle') {
+      shape = new fabric.Rect({
+        left: 100,
+        top: 100,
+        width: 100,
+        height: 60,
+        fill: '#ff0000',
+        stroke: '#000000',
+        strokeWidth: 1,
+      });
+    } else if (shapeType === 'circle') {
+      shape = new fabric.Circle({
+        left: 100,
+        top: 100,
+        radius: 50,
+        fill: '#00ff00',
+        stroke: '#000000',
+        strokeWidth: 1,
+      });
+    } else if (shapeType === 'triangle') {
+      shape = new fabric.Triangle({
+        left: 100,
+        top: 100,
+        width: 80,
+        height: 80,
+        fill: '#0000ff',
+        stroke: '#000000',
+        strokeWidth: 1,
+      });
+    } else if (shapeType === 'ellipse') {
+      shape = new fabric.Ellipse({
+        left: 100,
+        top: 100,
+        rx: 50,
+        ry: 30,
+        fill: '#ff00ff',
+        stroke: '#000000',
+        strokeWidth: 1,
+      });
+    } else if (shapeType === 'line') {
+      shape = new fabric.Line([100, 100, 200, 100], {
+        stroke: '#000000',
+        strokeWidth: 2,
+      });
+    }
+    if (shape) {
+      canvas.add(shape);
+      canvas.setActiveObject(shape);
+      canvas.renderAll();
+    }
+  };
+
+  const addBackgroundImage = (e) => {
+    if (!canvas) {
+      console.error('Cannot add background image: canvas not initialized');
+      return;
+    }
+    const file = e.target.files[0];
+    if (!file) {
+      console.error('No file selected for background image');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (f) => {
+      const data = f.target.result;
+      canvas.setBackgroundImage(data, canvas.renderAll.bind(canvas), {
+        scaleX: canvas.width / canvasSize.width,
+        scaleY: canvas.height / canvasSize.height,
+      });
+    };
+    reader.onerror = (err) => {
+      console.error('Error reading background image file:', err);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeBackground = () => {
+    if (canvas && canvas.backgroundImage) {
+      canvas.setBackgroundImage(null, canvas.renderAll.bind(canvas));
+    }
+  };
+
+  const updateElementProperty = (property, value) => {
+    if (selectedElement) {
+      console.log(`Updating ${property} to ${value} for element:`, selectedElement);
+      selectedElement.set(property, value);
+      canvas.renderAll();
+      setSelectedElement({ ...selectedElement });
+    } else {
+      console.error('No element selected to update');
+    }
   };
 
   const undo = () => {
     if (historyIndex > 0) {
-      setHistoryIndex((prev) => prev - 1);
-      setElements(history[historyIndex - 1]);
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      canvas.loadFromJSON(JSON.parse(history[newIndex]), canvas.renderAll.bind(canvas));
     }
   };
 
   const redo = () => {
     if (historyIndex < history.length - 1) {
-      setHistoryIndex((prev) => prev + 1);
-      setElements(history[historyIndex + 1]);
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      canvas.loadFromJSON(JSON.parse(history[newIndex]), canvas.renderAll.bind(canvas));
     }
   };
 
-  const saveDesign = async () => {
-    try {
-      const res = await fetch('/api/designs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ elements }),
+  const downloadCanvas = (format = 'png') => {
+    if (canvas) {
+      const url = canvas.toDataURL({
+        format: format,
+        quality: 1,
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      alert('Design saved successfully!');
-      setDesigns((prev) => [...prev, { _id: data.designId, elements }]);
-    } catch (error) {
-      console.error('Error saving design:', error);
-      alert('Failed to save design.');
+      const link = document.createElement('a');
+      link.download = `design.${format}`;
+      link.href = url;
+      link.click();
+    } else {
+      console.error('Cannot download: canvas not initialized');
     }
   };
 
-  const loadDesign = (designElements) => {
-    setElements(designElements);
-    setSelectedElement(null);
-    setHistory([designElements]);
-    setHistoryIndex(0);
+  const toggleGrid = () => {
+    if (!canvas) return;
+    setShowGrid(!showGrid);
+    if (!showGrid) {
+      for (let i = 0; i < canvasSize.width; i += 50) {
+        const line = new fabric.Line([i, 0, i, canvasSize.height], {
+          stroke: '#ccc',
+          selectable: false,
+          evented: false,
+        });
+        canvas.add(line);
+      }
+      for (let i = 0; i < canvasSize.height; i += 50) {
+        const line = new fabric.Line([0, i, canvasSize.width, i], {
+          stroke: '#ccc',
+          selectable: false,
+          evented: false,
+        });
+        canvas.add(line);
+      }
+    } else {
+      canvas.getObjects().forEach((obj) => {
+        if (obj.type === 'line') {
+          canvas.remove(obj);
+        }
+      });
+    }
+    canvas.renderAll();
   };
 
-  if (status === 'loading') return <p>Loading...</p>;
-  if (!session) return (
-    <p className="text-center py-20">
-      Please <Link href="/api/auth/signin" className="text-primary">sign in</Link> to access the design editor.
-    </p>
+  const handleZoom = (value) => {
+    setZoom(value);
+    if (canvas) {
+      canvas.setZoom(value);
+      canvas.setWidth(canvasSize.width * value);
+      canvas.setHeight(canvasSize.height * value);
+      canvas.renderAll();
+    }
+  };
+
+  const loadTemplate = (template) => {
+    if (!canvas || !fabric) {
+      console.error('Cannot load template: canvas or fabric not initialized');
+      return;
+    }
+    canvas.clear();
+    template.elements.forEach((el) => {
+      if (el.type === 'text') {
+        const textObj = new fabric.Textbox(el.text, {
+          left: el.left,
+          top: el.top,
+          fontSize: el.fontSize || 20,
+          fill: el.fill || '#000000',
+          fontFamily: el.fontFamily || 'Arial',
+          fontWeight: el.fontWeight || 'normal',
+          fontStyle: el.fontStyle || 'normal',
+          textAlign: el.textAlign || 'left',
+          editable: true,
+        });
+        canvas.add(textObj);
+      } else if (el.type === 'image') {
+        fabric.Image.fromURL(el.src, (img) => {
+          img.set({ left: el.left, top: el.top, angle: el.angle || 0 });
+          img.scale(el.scale || 0.5);
+          canvas.add(img);
+          canvas.renderAll();
+        }, (err) => {
+          console.error('Error loading image for template:', err);
+        });
+      } else if (el.type === 'rect') {
+        const rect = new fabric.Rect({
+          left: el.left,
+          top: el.top,
+          width: el.width,
+          height: el.height,
+          fill: el.fill || '#ff0000',
+          stroke: el.stroke || '#000000',
+          strokeWidth: el.strokeWidth || 1,
+        });
+        canvas.add(rect);
+      } else if (el.type === 'circle') {
+        const circle = new fabric.Circle({
+          left: el.left,
+          top: el.top,
+          radius: el.radius,
+          fill: el.fill || '#00ff00',
+          stroke: el.stroke || '#000000',
+          strokeWidth: el.strokeWidth || 1,
+        });
+        canvas.add(circle);
+      } else if (el.type === 'triangle') {
+        const triangle = new fabric.Triangle({
+          left: el.left,
+          top: el.top,
+          width: el.width,
+          height: el.height,
+          fill: el.fill || '#0000ff',
+          stroke: el.stroke || '#000000',
+          strokeWidth: el.strokeWidth || 1,
+        });
+        canvas.add(triangle);
+      } else if (el.type === 'ellipse') {
+        const ellipse = new fabric.Ellipse({
+          left: el.left,
+          top: el.top,
+          rx: el.rx,
+          ry: el.ry,
+          fill: el.fill || '#ff00ff',
+          stroke: el.stroke || '#000000',
+          strokeWidth: el.strokeWidth || 1,
+        });
+        canvas.add(ellipse);
+      } else if (el.type === 'line') {
+        const line = new fabric.Line(el.points, {
+          stroke: el.stroke || '#000000',
+          strokeWidth: el.strokeWidth || 2,
+        });
+        canvas.add(line);
+      }
+    });
+    canvas.renderAll();
+  };
+
+  const filteredTemplates = templates.filter(
+    (template) => template.category === designCategory
   );
 
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Loading...</h2>
+          <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full text-center">
+          <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+          <p className="mb-4">
+            Please{' '}
+            <button
+              onClick={() => signIn()}
+              className="text-blue-500 hover:underline"
+            >
+              sign in
+            </button>{' '}
+            to access the design page.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full text-center">
+          <h1 className="text-2xl font-bold mb-4 text-red-500">Error</h1>
+          <p className="mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-4">
-      <h1 className="text-3xl font-bold text-center mb-6">Design Your Poster</h1>
-      <div className="max-w-4xl mx-auto">
-        <div className="flex gap-2 mb-4">
+    <div className="min-h-screen flex flex-col bg-gray-100 font-sans">
+      {isLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-4 text-white">Loading Editor...</h2>
+            <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin"></div>
+          </div>
+        </div>
+      )}
+
+      {showCustomDimensions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+            <h2 className="text-xl font-bold mb-4">Set Custom Dimensions</h2>
+            <div className="space-y-4">
+              <label className="block">
+                Width (px):
+                <input
+                  type="number"
+                  value={customDimensions.width}
+                  onChange={(e) =>
+                    setCustomDimensions({
+                      ...customDimensions,
+                      width: parseInt(e.target.value) || 816,
+                    })
+                  }
+                  className="border p-2 rounded w-full mt-1"
+                />
+              </label>
+              <label className="block">
+                Height (px):
+                <input
+                  type="number"
+                  value={customDimensions.height}
+                  onChange={(e) =>
+                    setCustomDimensions({
+                      ...customDimensions,
+                      height: parseInt(e.target.value) || 1056,
+                    })
+                  }
+                  className="border p-2 rounded w-full mt-1"
+                />
+              </label>
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleCustomDimensionsChange}
+                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                >
+                  Apply
+                </button>
+                <button
+                  onClick={() => setShowCustomDimensions(false)}
+                  className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white p-4 shadow-md flex justify-between items-center">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => window.history.back()}
+            className="text-blue-500 hover:underline"
+          >
+            Back
+          </button>
+          <select
+            value={designCategory}
+            onChange={(e) => handleCategoryChange(e.target.value)}
+            className="p-2 border rounded-lg"
+          >
+            {Object.keys(designCategories).map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+            <option value="Custom">Custom Dimensions</option>
+          </select>
+        </div>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <label className="text-gray-600">Zoom:</label>
+            <select
+              value={zoom}
+              onChange={(e) => handleZoom(parseFloat(e.target.value))}
+              className="p-2 border rounded-lg"
+            >
+              <option value={0.25}>25%</option>
+              <option value={0.5}>50%</option>
+              <option value={1}>100%</option>
+              <option value={1.5}>150%</option>
+              <option value={2}>200%</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex space-x-2">
           <button
             onClick={undo}
-            disabled={historyIndex === 0}
-            className="px-4 py-2 bg-gray-500 text-white rounded disabled:bg-gray-300"
+            disabled={historyIndex <= 0}
+            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
           >
             Undo
           </button>
           <button
             onClick={redo}
-            disabled={historyIndex === history.length - 1}
-            className="px-4 py-2 bg-gray-500 text-white rounded disabled:bg-gray-300"
+            disabled={historyIndex >= history.length - 1}
+            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
           >
             Redo
           </button>
-        </div>
-        <Toolbar
-          elements={elements}
-          setElements={setElements}
-          selectedElement={selectedElement}
-          setSelectedElement={setSelectedElement}
-          setBackgroundColor={setBackgroundColor}
-          addToHistory={addToHistory}
-        />
-        <TemplateSelector setElements={setElements} />
-        <Canvas
-          elements={elements}
-          setElements={setElements}
-          setSelectedElement={setSelectedElement}
-          addToHistory={addToHistory}
-          backgroundColor={backgroundColor}
-        />
-        <div className="mt-4 flex gap-2">
           <button
-            onClick={saveDesign}
-            className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+            onClick={() => alert('Preview feature coming soon!')}
+            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
-            Save Design
+            Preview
           </button>
-          {designs.length > 0 && (
-            <div className="flex gap-2">
-              {designs.map((design) => (
-                <button
-                  key={design._id}
-                  onClick={() => loadDesign(design.elements)}
-                  className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-                >
-                  Load Design {design._id.slice(-4)}
-                </button>
-              ))}
+          <select
+            onChange={(e) => downloadCanvas(e.target.value)}
+            className="px-3 py-1 border rounded"
+          >
+            <option value="">Download As...</option>
+            <option value="png">PNG</option>
+            <option value="jpeg">JPEG</option>
+            <option value="pdf">PDF (Beta)</option>
+          </select>
+          <button
+            onClick={() => alert('Share feature coming soon!')}
+            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Share
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-1">
+        <div className="w-72 bg-white p-4 shadow-md overflow-y-auto">
+          <div className="flex space-x-2 mb-4 flex-wrap">
+            {['Templates', 'Elements', 'Text', 'Images', 'Background', 'Uploads'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-1 rounded mb-2 ${
+                  activeTab === tab
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 hover:bg-gray-300'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === 'Templates' && (
+            <div>
+              <h3 className="font-semibold mb-2 text-lg">Templates</h3>
+              <div className="space-y-2">
+                {filteredTemplates.map((template) => (
+                  <div
+                    key={template.id}
+                    className="flex items-center space-x-2 p-2 bg-gray-100 rounded hover:bg-gray-200 cursor-pointer"
+                    onClick={() => loadTemplate(template)}
+                  >
+                    <Image
+                      src={template.previewImage}
+                      alt={template.name}
+                      width={50}
+                      height={50}
+                      className="object-cover rounded"
+                    />
+                    <span>{template.name}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
+
+          {activeTab === 'Elements' && (
+            <div>
+              <h3 className="font-semibold mb-2 text-lg">Elements</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => addShape('rectangle')}
+                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
+                >
+                  Add Rectangle
+                </button>
+                <button
+                  onClick={() => addShape('circle')}
+                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
+                >
+                  Add Circle
+                </button>
+                <button
+                  onClick={() => addShape('triangle')}
+                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
+                >
+                  Add Triangle
+                </button>
+                <button
+                  onClick={() => addShape('ellipse')}
+                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
+                >
+                  Add Ellipse
+                </button>
+                <button
+                  onClick={() => addShape('line')}
+                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
+                >
+                  Add Line
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'Text' && (
+            <div>
+              <h3 className="font-semibold mb-2 text-lg">Add Text</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => addText('Heading')}
+                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
+                >
+                  Add Heading
+                </button>
+                <button
+                  onClick={() => addText('Subheading')}
+                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
+                >
+                  Add Subheading
+                </button>
+                <button
+                  onClick={() => addText('Body')}
+                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
+                >
+                  Add Body Text
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'Images' && (
+            <div>
+              <h3 className="font-semibold mb-2 text-lg">Add Image</h3>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={addImage}
+                className="border p-2 rounded w-full"
+              />
+            </div>
+          )}
+
+          {activeTab === 'Background' && (
+            <div>
+              <h3 className="font-semibold mb-2 text-lg">Background</h3>
+              <div className="space-y-2">
+                <label className="block">
+                  Color:
+                  <input
+                    type="color"
+                    value={backgroundColor}
+                    onChange={(e) => setBackgroundColor(e.target.value)}
+                    className="w-full h-10 mt-1"
+                  />
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={addBackgroundImage}
+                  className="border p-2 rounded w-full"
+                />
+                <button
+                  onClick={removeBackground}
+                  className="bg-red-500 text-white px-4 py-2 rounded w-full hover:bg-red-600"
+                >
+                  Remove Background
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'Uploads' && (
+            <div>
+              <h3 className="font-semibold mb-2 text-lg">Uploads</h3>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={addImage}
+                className="border p-2 rounded w-full mb-2"
+              />
+              <div className="space-y-2">
+                {uploadedImages.map((src, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center space-x-2 p-2 bg-gray-100 rounded hover:bg-gray-200 cursor-pointer"
+                    onClick={() => addUploadedImage(src)}
+                  >
+                    <Image
+                      src={src}
+                      alt={`Upload ${index}`}
+                      width={50}
+                      height={50}
+                      className="object-cover rounded"
+                    />
+                    <span>Image {index + 1}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 p-4 flex justify-center items-center bg-gray-200">
+          <div
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: 'top left',
+            }}
+          >
+            <canvas ref={canvasRef} className="border shadow-lg" />
+          </div>
+        </div>
+
+        <div className="w-72 bg-white p-4 shadow-md overflow-y-auto">
+          <h2 className="text-lg font-bold mb-4">Properties & Layers</h2>
+          {selectedElement && (
+            <div className="mb-4">
+              <h3 className="font-semibold mb-2">Properties</h3>
+              {selectedElement.type === 'textbox' && (
+                <div className="space-y-2">
+                  <label className="block">
+                    Font Family:
+                    <select
+                      value={selectedElement.fontFamily || 'Arial'}
+                      onChange={(e) =>
+                        updateElementProperty('fontFamily', e.target.value)
+                      }
+                      className="border p-1 rounded w-full"
+                    >
+                      {fontFamilies.map((font) => (
+                        <option key={font} value={font}>
+                          {font}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    Font Size:
+                    <input
+                      type="number"
+                      value={selectedElement.fontSize || 20}
+                      onChange={(e) =>
+                        updateElementProperty('fontSize', parseInt(e.target.value))
+                      }
+                      className="border p-1 rounded w-full"
+                    />
+                  </label>
+                  <label className="block">
+                    Font Weight:
+                    <select
+                      value={selectedElement.fontWeight || 'normal'}
+                      onChange={(e) =>
+                        updateElementProperty('fontWeight', e.target.value)
+                      }
+                      className="border p-1 rounded w-full"
+                    >
+                      <option value="normal">Normal</option>
+                      <option value="bold">Bold</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    Font Style:
+                    <select
+                      value={selectedElement.fontStyle || 'normal'}
+                      onChange={(e) =>
+                        updateElementProperty('fontStyle', e.target.value)
+                      }
+                      className="border p-1 rounded w-full"
+                    >
+                      <option value="normal">Normal</option>
+                      <option value="italic">Italic</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    Alignment:
+                    <select
+                      value={selectedElement.textAlign || 'left'}
+                      onChange={(e) =>
+                        updateElementProperty('textAlign', e.target.value)
+                      }
+                      className="border p-1 rounded w-full"
+                    >
+                      <option value="left">Left</option>
+                      <option value="center">Center</option>
+                      <option value="right">Right</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    Color:
+                    <input
+                      type="color"
+                      value={selectedElement.fill || '#000000'}
+                      onChange={(e) => updateElementProperty('fill', e.target.value)}
+                      className="w-full h-10"
+                    />
+                  </label>
+                  <label className="block">
+                    Opacity:
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={selectedElement.opacity || 1}
+                      onChange={(e) =>
+                        updateElementProperty('opacity', parseFloat(e.target.value))
+                      }
+                      className="w-full"
+                    />
+                  </label>
+                </div>
+              )}
+              {(selectedElement.type === 'image' || selectedElement.type === 'rect' || selectedElement.type === 'circle' || selectedElement.type === 'triangle' || selectedElement.type === 'ellipse' || selectedElement.type === 'line') && (
+                <div className="space-y-2">
+                  <label className="block">
+                    Opacity:
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={selectedElement.opacity || 1}
+                      onChange={(e) =>
+                        updateElementProperty('opacity', parseFloat(e.target.value))
+                      }
+                      className="w-full"
+                    />
+                  </label>
+                  <label className="block">
+                    Rotation:
+                    <input
+                      type="number"
+                      value={selectedElement.angle || 0}
+                      onChange={(e) =>
+                        updateElementProperty('angle', parseInt(e.target.value))
+                      }
+                      className="border p-1 rounded w-full"
+                    />
+                  </label>
+                  {selectedElement.type === 'image' && (
+                    <>
+                      <button
+                        onClick={() =>
+                          updateElementProperty('flipX', !selectedElement.flipX)
+                        }
+                        className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300"
+                      >
+                        Flip Horizontal
+                      </button>
+                      <button
+                        onClick={() =>
+                          updateElementProperty('flipY', !selectedElement.flipY)
+                        }
+                        className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300"
+                      >
+                        Flip Vertical
+                      </button>
+                    </>
+                  )}
+                  {(selectedElement.type === 'rect' || selectedElement.type === 'circle' || selectedElement.type === 'triangle' || selectedElement.type === 'ellipse' || selectedElement.type === 'line') && (
+                    <>
+                      <label className="block">
+                        Fill Color:
+                        <input
+                          type="color"
+                          value={selectedElement.fill || '#ff0000'}
+                          onChange={(e) =>
+                            updateElementProperty('fill', e.target.value)
+                          }
+                          className="w-full h-10"
+                        />
+                      </label>
+                      <label className="block">
+                        Stroke Color:
+                        <input
+                          type="color"
+                          value={selectedElement.stroke || '#000000'}
+                          onChange={(e) =>
+                            updateElementProperty('stroke', e.target.value)
+                          }
+                          className="w-full h-10"
+                        />
+                      </label>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          <h3 className="font-semibold mb-2">Layers</h3>
+          <div className="space-y-2">
+            {canvas?.getObjects().map((obj, index) => (
+              <div
+                key={index}
+                className="flex justify-between items-center p-2 bg-gray-100 rounded"
+              >
+                <span>{obj.type}</span>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => {
+                      canvas.setActiveObject(obj);
+                      canvas.renderAll();
+                    }}
+                    className="text-blue-500 hover:text-blue-700"
+                  >
+                    Select
+                  </button>
+                  <button
+                    onClick={() => {
+                      canvas.remove(obj);
+                      canvas.renderAll();
+                    }}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
+export const dynamic = 'force-dynamic';
+export const ssr = false;

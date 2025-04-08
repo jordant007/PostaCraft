@@ -1,123 +1,339 @@
 // src/components/TemplateSelector.js
-"use client";
-
 export const templates = [
+  // Poster Flyer Letter Templates
   {
-    id: 'event-flyer-1',
-    name: 'Event Flyer 1',
-    previewImage: '/templates/event-flyer-1.png',
+    id: 1,
+    name: 'Simple Poster',
+    category: 'Poster Flyer Letter',
+    previewImage: '/templates/simple-poster.png',
     elements: [
       {
-        id: '1',
         type: 'text',
-        x: 50,
-        y: 50,
-        content: 'Event Title',
-        style: { color: '#000000', fontSize: '32px', fontWeight: 'bold', fontFamily: 'Arial', textAlign: 'center', rotation: 0 },
+        text: 'Event Title',
+        left: 100,
+        top: 100,
+        fontSize: 40,
+        fill: '#000000',
+        fontFamily: 'Arial',
+        fontWeight: 'bold',
+        textAlign: 'center',
       },
       {
-        id: '2',
         type: 'text',
-        x: 50,
-        y: 100,
-        content: 'Date: TBD | Location: TBD',
-        style: { color: '#555555', fontSize: '16px', fontFamily: 'Arial', textAlign: 'center', rotation: 0 },
+        text: 'Event Details\nDate: [Insert Date]\nLocation: [Insert Location]',
+        left: 100,
+        top: 150,
+        fontSize: 20,
+        fill: '#000000',
+        fontFamily: 'Arial',
+        fontWeight: 'normal',
+        textAlign: 'center',
       },
       {
-        id: '3',
-        type: 'shape',
-        x: 300,
-        y: 50,
-        content: '',
-        style: { width: 100, height: 100, backgroundColor: '#ff0000', borderRadius: '50%', rotation: 0 },
-        shapeType: 'circle',
+        type: 'rect',
+        left: 50,
+        top: 50,
+        width: 300,
+        height: 200,
+        fill: 'rgba(0, 0, 255, 0.1)',
+        stroke: '#0000ff',
+        strokeWidth: 2,
       },
     ],
   },
   {
-    id: 'business-poster-1',
-    name: 'Business Poster 1',
-    previewImage: '/templates/business-poster-1.png',
+    id: 2,
+    name: 'Bold Poster',
+    category: 'Poster Flyer Letter',
+    previewImage: '/templates/bold-poster.png',
     elements: [
       {
-        id: '1',
         type: 'text',
-        x: 50,
-        y: 50,
-        content: 'Your Business Name',
-        style: { color: '#000000', fontSize: '28px', fontWeight: 'bold', fontFamily: 'Arial', textAlign: 'left', rotation: 0 },
+        text: 'Big Announcement!',
+        left: 80,
+        top: 80,
+        fontSize: 50,
+        fill: '#ff0000',
+        fontFamily: 'Helvetica',
+        fontWeight: 'bold',
+        textAlign: 'center',
       },
       {
-        id: '2',
-        type: 'text',
-        x: 50,
-        y: 90,
-        content: 'Contact Us: (123) 456-7890',
-        style: { color: '#333333', fontSize: '14px', fontFamily: 'Arial', textAlign: 'left', rotation: 0 },
+        type: 'circle',
+        left: 150,
+        top: 200,
+        radius: 50,
+        fill: '#ffff00',
+        stroke: '#000000',
+        strokeWidth: 1,
       },
+    ],
+  },
+
+  // Instagram Reel Post Templates
+  {
+    id: 3,
+    name: 'Instagram Story',
+    category: 'Instagram Reel Post',
+    previewImage: '/templates/instagram-story.png',
+    elements: [
       {
-        id: '3',
         type: 'image',
-        x: 200,
-        y: 150,
-        content: '/placeholder-image.jpg',
-        style: { width: 150, height: 150, rotation: 0 },
+        src: '/images/sample-image.jpg',
+        left: 100,
+        top: 100,
+        scale: 0.5,
+      },
+      {
+        type: 'text',
+        text: 'Swipe Up!',
+        left: 100,
+        top: 300,
+        fontSize: 30,
+        fill: '#ffffff',
+        fontFamily: 'Roboto',
+        fontWeight: 'bold',
+        textAlign: 'center',
       },
     ],
   },
   {
-    id: 'event-flyer-2',
-    name: 'Event Flyer 2',
-    previewImage: '/templates/event-flyer-2.png',
+    id: 4,
+    name: 'Instagram Quote',
+    category: 'Instagram Reel Post',
+    previewImage: '/templates/instagram-quote.png',
     elements: [
       {
-        id: '1',
-        type: 'text',
-        x: 50,
-        y: 50,
-        content: 'Summer Festival',
-        style: { color: '#ff4500', fontSize: '36px', fontWeight: 'bold', fontFamily: 'Georgia', textAlign: 'center', rotation: 0 },
+        type: 'rect',
+        left: 0,
+        top: 0,
+        width: 1080,
+        height: 1920,
+        fill: '#f0f0f0',
       },
       {
-        id: '2',
-        type: 'shape',
-        x: 100,
-        y: 150,
-        content: '',
-        style: { width: 80, height: 80, backgroundColor: '#00ff00', borderRadius: '0%', rotation: 0 },
-        shapeType: 'square',
+        type: 'text',
+        text: 'Inspire. Create. Share.',
+        left: 200,
+        top: 800,
+        fontSize: 60,
+        fill: '#333333',
+        fontFamily: 'Georgia',
+        fontWeight: 'normal',
+        textAlign: 'center',
+      },
+    ],
+  },
+
+  // Event Flyer Templates
+  {
+    id: 5,
+    name: 'Event Flyer Classic',
+    category: 'Event Flyer',
+    previewImage: '/templates/event-flyer-classic.png',
+    elements: [
+      {
+        type: 'text',
+        text: 'Join Our Event!',
+        left: 100,
+        top: 100,
+        fontSize: 40,
+        fill: '#000000',
+        fontFamily: 'Arial',
+        fontWeight: 'bold',
+        textAlign: 'center',
       },
       {
-        id: '3',
         type: 'text',
-        x: 50,
-        y: 250,
-        content: 'Join us for a fun day!',
-        style: { color: '#000000', fontSize: '20px', fontFamily: 'Arial', textAlign: 'center', rotation: 0 },
+        text: 'Date: [Insert Date]\nTime: [Insert Time]\nVenue: [Insert Venue]',
+        left: 100,
+        top: 150,
+        fontSize: 20,
+        fill: '#000000',
+        fontFamily: 'Arial',
+        fontWeight: 'normal',
+        textAlign: 'center',
+      },
+      {
+        type: 'triangle',
+        left: 150,
+        top: 300,
+        width: 80,
+        height: 80,
+        fill: '#ff0000',
+        stroke: '#000000',
+        strokeWidth: 1,
+      },
+    ],
+  },
+  {
+    id: 6,
+    name: 'Event Flyer Modern',
+    category: 'Event Flyer',
+    previewImage: '/templates/event-flyer-modern.png',
+    elements: [
+      {
+        type: 'ellipse',
+        left: 100,
+        top: 100,
+        rx: 80,
+        ry: 50,
+        fill: '#00ff00',
+        stroke: '#000000',
+        strokeWidth: 1,
+      },
+      {
+        type: 'text',
+        text: 'Special Event',
+        left: 80,
+        top: 200,
+        fontSize: 35,
+        fill: '#000000',
+        fontFamily: 'Helvetica',
+        fontWeight: 'bold',
+        textAlign: 'center',
+      },
+    ],
+  },
+
+  // Business Poster Templates
+  {
+    id: 7,
+    name: 'Business Poster Professional',
+    category: 'Business Poster',
+    previewImage: '/templates/business-poster-professional.png',
+    elements: [
+      {
+        type: 'text',
+        text: 'Your Business Name',
+        left: 100,
+        top: 100,
+        fontSize: 40,
+        fill: '#000000',
+        fontFamily: 'Arial',
+        fontWeight: 'bold',
+        textAlign: 'center',
+      },
+      {
+        type: 'text',
+        text: 'Contact Us: [Insert Contact Info]',
+        left: 100,
+        top: 150,
+        fontSize: 20,
+        fill: '#000000',
+        fontFamily: 'Arial',
+        fontWeight: 'normal',
+        textAlign: 'center',
+      },
+      {
+        type: 'line',
+        points: [100, 200, 300, 200],
+        stroke: '#000000',
+        strokeWidth: 2,
+      },
+    ],
+  },
+  {
+    id: 8,
+    name: 'Business Poster Minimal',
+    category: 'Business Poster',
+    previewImage: '/templates/business-poster-minimal.png',
+    elements: [
+      {
+        type: 'text',
+        text: 'Minimal Design',
+        left: 100,
+        top: 100,
+        fontSize: 40,
+        fill: '#333333',
+        fontFamily: 'Helvetica',
+        fontWeight: 'bold',
+        textAlign: 'center',
+      },
+      {
+        type: 'rect',
+        left: 150,
+        top: 200,
+        width: 100,
+        height: 100,
+        fill: '#cccccc',
+      },
+    ],
+  },
+
+  // Social Media Graphic Templates
+  {
+    id: 9,
+    name: 'Social Media Ad',
+    category: 'Social Media Graphic',
+    previewImage: '/templates/social-media-ad.png',
+    elements: [
+      {
+        type: 'image',
+        src: '/images/sample-ad-image.jpg',
+        left: 100,
+        top: 100,
+        scale: 0.5,
+      },
+      {
+        type: 'text',
+        text: 'Limited Offer!',
+        left: 100,
+        top: 300,
+        fontSize: 30,
+        fill: '#ff0000',
+        fontFamily: 'Arial',
+        fontWeight: 'bold',
+        textAlign: 'center',
+      },
+    ],
+  },
+  {
+    id: 10,
+    name: 'Social Media Quote',
+    category: 'Social Media Graphic',
+    previewImage: '/templates/social-media-quote.png',
+    elements: [
+      {
+        type: 'rect',
+        left: 0,
+        top: 0,
+        width: 1080,
+        height: 1080,
+        fill: '#e0e0e0',
+      },
+      {
+        type: 'text',
+        text: 'Stay Motivated!',
+        left: 200,
+        top: 400,
+        fontSize: 50,
+        fill: '#000000',
+        fontFamily: 'Georgia',
+        fontWeight: 'normal',
+        textAlign: 'center',
+      },
+    ],
+  },
+
+  // Custom Templates (can be used as a fallback or for custom dimensions)
+  {
+    id: 11,
+    name: 'Custom Blank',
+    category: 'Custom',
+    previewImage: '/templates/custom-blank.png',
+    elements: [
+      {
+        type: 'text',
+        text: 'Start Designing!',
+        left: 100,
+        top: 100,
+        fontSize: 30,
+        fill: '#000000',
+        fontFamily: 'Arial',
+        fontWeight: 'normal',
+        textAlign: 'center',
       },
     ],
   },
 ];
-
-export default function TemplateSelector({ setElements }) {
-  const applyTemplate = (template) => {
-    setElements(template.elements);
-  };
-
-  return (
-    <div className="mb-4">
-      <h2 className="text-xl font-semibold mb-2">Select a Template</h2>
-      <div className="flex gap-2">
-        {templates.map((template) => (
-          <button
-            key={template.id}
-            onClick={() => applyTemplate(template)}
-            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-          >
-            {template.name}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}

@@ -4,6 +4,7 @@
 import { useSession, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link'; // Add Link for the "Create New Design" button
 import { templates } from '../../components/TemplateSelector';
 
 export default function Templates() {
@@ -12,7 +13,8 @@ export default function Templates() {
 
   const handleSelectTemplate = (template) => {
     localStorage.setItem('selectedTemplate', JSON.stringify(template.elements));
-    router.push('/design');
+    // Include the category in the redirect URL
+    router.push(`/design?category=${encodeURIComponent(template.category)}`);
   };
 
   if (status === 'loading') return <p className="text-center py-20">Loading...</p>;
@@ -38,7 +40,14 @@ export default function Templates() {
 
   return (
     <div className="p-4">
-      <h1 className="text-3xl font-bold text-center mb-6">Template Gallery</h1>
+      <div className="flex justify-between items-center mb-6 max-w-6xl mx-auto">
+        <h1 className="text-3xl font-bold text-center">Template Gallery</h1>
+        <Link href="/design/start">
+          <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+            Create New Design
+          </button>
+        </Link>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
         {templates.map((template) => (
           <div key={template.id} className="bg-white p-4 rounded-lg shadow-lg flex flex-col items-center">

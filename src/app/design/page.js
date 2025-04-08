@@ -63,7 +63,7 @@ export default function Design() {
       size = designCategories[category] || { width: 816, height: 1056 };
     }
     setCanvasSize(size);
-  }, [searchParams, customDimensions]);
+  }, [searchParams, customDimensions, designCategories]); // Added designCategories
 
   // Track when canvasRef.current is ready
   useEffect(() => {
@@ -129,18 +129,17 @@ export default function Design() {
     setIsLoading(false);
 
     return () => {
-      // Safely dispose of the canvas
       if (fabricCanvas && !fabricCanvas._disposed) {
         try {
           fabricCanvas.dispose();
-          fabricCanvas._disposed = true; // Mark as disposed to prevent double disposal
+          fabricCanvas._disposed = true;
         } catch (error) {
           console.error('Error disposing canvas:', error);
         }
       }
-      setCanvas(null); // Clear the canvas state
+      setCanvas(null);
     };
-  }, [canvasSize, isCanvasRefReady]);
+  }, [canvasSize, isCanvasRefReady, history, historyIndex, loadTemplate]); // Added history, historyIndex, loadTemplate
 
   // Update canvas background color
   useEffect(() => {

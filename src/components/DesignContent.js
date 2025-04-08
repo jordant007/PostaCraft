@@ -74,8 +74,8 @@ export default function DesignContent() {
 
   // Define loadTemplate with useCallback to prevent redefinition on every render
   const loadTemplate = useCallback((template) => {
-    if (!canvas || !fabric) {
-      console.error('Cannot load template: canvas or fabric not initialized');
+    if (!canvas || !fabric || canvas._disposed) {
+      console.error('Cannot load template: canvas or fabric not initialized or canvas is disposed');
       return;
     }
     canvas.clear();
@@ -95,6 +95,10 @@ export default function DesignContent() {
         canvas.add(textObj);
       } else if (el.type === 'image') {
         fabric.Image.fromURL(el.src, (img) => {
+          if (canvas._disposed) {
+            console.warn('Canvas disposed while loading image for template');
+            return;
+          }
           img.set({ left: el.left, top: el.top, angle: el.angle || 0 });
           img.scale(el.scale || 0.5);
           canvas.add(img);
@@ -153,7 +157,9 @@ export default function DesignContent() {
         canvas.add(line);
       }
     });
-    canvas.renderAll();
+    if (!canvas._disposed) {
+      canvas.renderAll();
+    }
   }, [canvas, fabric]);
 
   // Initialize canvas when canvasRef.current and canvasSize are available
@@ -203,6 +209,10 @@ export default function DesignContent() {
     });
 
     fabricCanvas.on('object:modified', () => {
+      if (fabricCanvas._disposed) {
+        console.warn('Canvas disposed during object:modified event');
+        return;
+      }
       const state = JSON.stringify(fabricCanvas.toJSON());
       const newHistory = history.slice(0, historyIndex + 1);
       newHistory.push(state);
@@ -223,11 +233,11 @@ export default function DesignContent() {
       }
       setCanvas(null);
     };
-  }, [canvasSize, isCanvasRefReady, history, historyIndex, loadTemplate]);
+  }, [canvasSize, isCanvasRefReady]); // Removed history, historyIndex, and loadTemplate
 
   // Update canvas background color
   useEffect(() => {
-    if (canvas) {
+    if (canvas && !canvas._disposed) {
       console.log('Updating background color to:', backgroundColor);
       canvas.backgroundColor = backgroundColor;
       canvas.renderAll();
@@ -252,8 +262,8 @@ export default function DesignContent() {
   };
 
   const addText = (style = 'Body') => {
-    if (!canvas || !fabric) {
-      console.error('Cannot add text: canvas or fabric not initialized');
+    if (!canvas || !fabric || canvas._disposed) {
+      console.error('Cannot add text: canvas or fabric not initialized or canvas is disposed');
       return;
     }
     const styles = {
@@ -279,8 +289,8 @@ export default function DesignContent() {
   };
 
   const addImage = (e) => {
-    if (!canvas || !fabric) {
-      console.error('Cannot add image: canvas or fabric not initialized');
+    if (!canvas || !fabric || canvas._disposed) {
+      console.error('Cannot add image: canvas or fabric not initialized or canvas is disposed');
       return;
     }
     const file = e.target.files[0];
@@ -292,6 +302,10 @@ export default function DesignContent() {
     reader.onload = (f) => {
       const data = f.target.result;
       fabric.Image.fromURL(data, (img) => {
+        if (canvas._disposed) {
+          console.warn('Canvas disposed while adding image');
+          return;
+        }
         img.scale(0.5);
         img.set({ left: 100, top: 100 });
         canvas.add(img);
@@ -309,11 +323,15 @@ export default function DesignContent() {
   };
 
   const addUploadedImage = (src) => {
-    if (!canvas || !fabric) {
-      console.error('Cannot add uploaded image: canvas or fabric not initialized');
+    if (!canvas || !fabric || canvas._disposed) {
+      console.error('Cannot add uploaded image: canvas or fabric not initialized or canvas is disposed');
       return;
     }
     fabric.Image.fromURL(src, (img) => {
+      if (canvas._disposed) {
+        console.warn('Canvas disposed while adding uploaded image');
+        return;
+      }
       img.scale(0.5);
       img.set({ left: 100, top: 100 });
       canvas.add(img);
@@ -325,8 +343,8 @@ export default function DesignContent() {
   };
 
   const addShape = (shapeType) => {
-    if (!canvas || !fabric) {
-      console.error('Cannot add shape: canvas or fabric not initialized');
+    if (!canvas || !fabric || canvas._disposed) {
+      console.error('Cannot add shape: canvas or fabric not initialized or canvas is disposed');
       return;
     }
     let shape;
@@ -383,8 +401,8 @@ export default function DesignContent() {
   };
 
   const addBackgroundImage = (e) => {
-    if (!canvas) {
-      console.error('Cannot add background image: canvas not initialized');
+    if (!canvas || canvas._disposed) {
+      console.error('Cannot add background image: canvas not initialized or disposed');
       return;
     }
     const file = e.target.files[0];
@@ -395,6 +413,10 @@ export default function DesignContent() {
     const reader = new FileReader();
     reader.onload = (f) => {
       const data = f.target.result;
+      if (canvas._disposed) {
+        console.warn('Canvas disposed while setting background image');
+        return;
+      }
       canvas.setBackgroundImage(data, canvas.renderAll.bind(canvas), {
         scaleX: canvas.width / canvasSize.width,
         scaleY: canvas.height / canvasSize.height,
@@ -407,24 +429,24 @@ export default function DesignContent() {
   };
 
   const removeBackground = () => {
-    if (canvas && canvas.backgroundImage) {
+    if (canvas && !canvas._disposed && canvas.backgroundImage) {
       canvas.setBackgroundImage(null, canvas.renderAll.bind(canvas));
     }
   };
 
   const updateElementProperty = (property, value) => {
-    if (selectedElement) {
+    if (selectedElement && canvas && !canvas._disposed) {
       console.log(`Updating ${property} to ${value} for element:`, selectedElement);
       selectedElement.set(property, value);
       canvas.renderAll();
       setSelectedElement({ ...selectedElement });
     } else {
-      console.error('No element selected to update');
+      console.error('No element selected to update or canvas is disposed');
     }
   };
 
   const undo = () => {
-    if (historyIndex > 0) {
+    if (historyIndex > 0 && canvas && !canvas._disposed) {
       const newIndex = historyIndex - 1;
       setHistoryIndex(newIndex);
       canvas.loadFromJSON(JSON.parse(history[newIndex]), canvas.renderAll.bind(canvas));
@@ -432,7 +454,7 @@ export default function DesignContent() {
   };
 
   const redo = () => {
-    if (historyIndex < history.length - 1) {
+    if (historyIndex < history.length - 1 && canvas && !canvas._disposed) {
       const newIndex = historyIndex + 1;
       setHistoryIndex(newIndex);
       canvas.loadFromJSON(JSON.parse(history[newIndex]), canvas.renderAll.bind(canvas));
@@ -440,7 +462,7 @@ export default function DesignContent() {
   };
 
   const downloadCanvas = (format = 'png') => {
-    if (canvas) {
+    if (canvas && !canvas._disposed) {
       const url = canvas.toDataURL({
         format: format,
         quality: 1,
@@ -450,12 +472,12 @@ export default function DesignContent() {
       link.href = url;
       link.click();
     } else {
-      console.error('Cannot download: canvas not initialized');
+      console.error('Cannot download: canvas not initialized or disposed');
     }
   };
 
   const toggleGrid = () => {
-    if (!canvas) return;
+    if (!canvas || canvas._disposed) return;
     setShowGrid(!showGrid);
     if (!showGrid) {
       for (let i = 0; i < canvasSize.width; i += 50) {
@@ -486,7 +508,7 @@ export default function DesignContent() {
 
   const handleZoom = (value) => {
     setZoom(value);
-    if (canvas) {
+    if (canvas && !canvas._disposed) {
       canvas.setZoom(value);
       canvas.setWidth(canvasSize.width * value);
       canvas.setHeight(canvasSize.height * value);
@@ -1061,8 +1083,10 @@ export default function DesignContent() {
                 <div className="flex space-x-2">
                   <button
                     onClick={() => {
-                      canvas.setActiveObject(obj);
-                      canvas.renderAll();
+                      if (canvas && !canvas._disposed) {
+                        canvas.setActiveObject(obj);
+                        canvas.renderAll();
+                      }
                     }}
                     className="text-blue-500 hover:text-blue-700"
                   >
@@ -1070,8 +1094,10 @@ export default function DesignContent() {
                   </button>
                   <button
                     onClick={() => {
-                      canvas.remove(obj);
-                      canvas.renderAll();
+                      if (canvas && !canvas._disposed) {
+                        canvas.remove(obj);
+                        canvas.renderAll();
+                      }
                     }}
                     className="text-red-500 hover:text-red-700"
                   >

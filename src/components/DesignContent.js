@@ -30,6 +30,9 @@ export default function DesignContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isCanvasRefReady, setIsCanvasRefReady] = useState(false);
+  // Add state for toggling sidebars on mobile
+  const [showTools, setShowTools] = useState(true);
+  const [showProperties, setShowProperties] = useState(true);
 
   const designCategories = useMemo(() => ({
     'Poster Flyer Letter': { width: 816, height: 1056 },
@@ -233,7 +236,7 @@ export default function DesignContent() {
       }
       setCanvas(null);
     };
-  }, [canvasSize, isCanvasRefReady]); // Removed history, historyIndex, and loadTemplate
+  }, [canvasSize, isCanvasRefReady]);
 
   // Update canvas background color
   useEffect(() => {
@@ -581,7 +584,7 @@ export default function DesignContent() {
 
       {showCustomDimensions && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm">
             <h2 className="text-xl font-bold mb-4">Set Custom Dimensions</h2>
             <div className="space-y-4">
               <label className="block">
@@ -615,13 +618,13 @@ export default function DesignContent() {
               <div className="flex space-x-2">
                 <button
                   onClick={handleCustomDimensionsChange}
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full"
                 >
                   Apply
                 </button>
                 <button
                   onClick={() => setShowCustomDimensions(false)}
-                  className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400"
+                  className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400 w-full"
                 >
                   Cancel
                 </button>
@@ -631,18 +634,19 @@ export default function DesignContent() {
         </div>
       )}
 
-      <div className="bg-white p-4 shadow-md flex justify-between items-center">
-        <div className="flex items-center space-x-4">
+      {/* Top Toolbar */}
+      <div className="bg-white p-4 shadow-md flex flex-wrap justify-between items-center gap-2">
+        <div className="flex items-center space-x-2 flex-wrap">
           <button
             onClick={() => window.history.back()}
-            className="text-blue-500 hover:underline"
+            className="text-blue-500 hover:underline text-sm md:text-base"
           >
             Back
           </button>
           <select
             value={designCategory}
             onChange={(e) => handleCategoryChange(e.target.value)}
-            className="p-2 border rounded-lg"
+            className="p-2 border rounded-lg text-sm md:text-base w-full md:w-auto"
           >
             {Object.keys(designCategories).map((category) => (
               <option key={category} value={category}>
@@ -652,13 +656,13 @@ export default function DesignContent() {
             <option value="Custom">Custom Dimensions</option>
           </select>
         </div>
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <label className="text-gray-600">Zoom:</label>
+        <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
+            <label className="text-gray-600 text-sm md:text-base">Zoom:</label>
             <select
               value={zoom}
               onChange={(e) => handleZoom(parseFloat(e.target.value))}
-              className="p-2 border rounded-lg"
+              className="p-2 border rounded-lg text-sm md:text-base"
             >
               <option value={0.25}>25%</option>
               <option value={0.5}>50%</option>
@@ -668,30 +672,30 @@ export default function DesignContent() {
             </select>
           </div>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 flex-wrap gap-2">
           <button
             onClick={undo}
             disabled={historyIndex <= 0}
-            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 text-sm md:text-base min-w-[60px]"
           >
             Undo
           </button>
           <button
             onClick={redo}
             disabled={historyIndex >= history.length - 1}
-            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 text-sm md:text-base min-w-[60px]"
           >
             Redo
           </button>
           <button
             onClick={() => alert('Preview feature coming soon!')}
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm md:text-base min-w-[60px]"
           >
             Preview
           </button>
           <select
             onChange={(e) => downloadCanvas(e.target.value)}
-            className="px-3 py-1 border rounded"
+            className="px-3 py-1 border rounded text-sm md:text-base"
           >
             <option value="">Download As...</option>
             <option value="png">PNG</option>
@@ -700,412 +704,438 @@ export default function DesignContent() {
           </select>
           <button
             onClick={() => alert('Share feature coming soon!')}
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm md:text-base min-w-[60px]"
           >
             Share
           </button>
         </div>
       </div>
 
-      <div className="flex flex-1">
-        <div className="w-72 bg-white p-4 shadow-md overflow-y-auto">
-          <div className="flex space-x-2 mb-4 flex-wrap">
-            {['Templates', 'Elements', 'Text', 'Images', 'Background', 'Uploads'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1 rounded mb-2 ${
-                  activeTab === tab
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 hover:bg-gray-300'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
+      {/* Main Content */}
+      <div className="flex flex-col md:flex-row flex-1">
+        {/* Tools Sidebar (Left) */}
+        <div className="w-full md:w-72 bg-white p-4 shadow-md overflow-y-auto">
+          <div className="flex justify-between items-center mb-4 md:mb-0">
+            <h2 className="text-lg font-bold">Tools</h2>
+            <button
+              onClick={() => setShowTools(!showTools)}
+              className="md:hidden text-blue-500 hover:underline"
+            >
+              {showTools ? 'Hide' : 'Show'} Tools
+            </button>
           </div>
+          <div className={`${showTools ? 'block' : 'hidden'} md:block`}>
+            <div className="flex space-x-2 mb-4 flex-wrap gap-2">
+              {['Templates', 'Elements', 'Text', 'Images', 'Background', 'Uploads'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-3 py-1 rounded mb-2 text-sm md:text-base ${
+                    activeTab === tab
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
 
-          {activeTab === 'Templates' && (
-            <div>
-              <h3 className="font-semibold mb-2 text-lg">Templates</h3>
-              <div className="space-y-2">
-                {filteredTemplates.map((template) => (
-                  <div
-                    key={template.id}
-                    className="flex items-center space-x-2 p-2 bg-gray-100 rounded hover:bg-gray-200 cursor-pointer"
-                    onClick={() => loadTemplate(template)}
+            {activeTab === 'Templates' && (
+              <div>
+                <h3 className="font-semibold mb-2 text-lg">Templates</h3>
+                <div className="space-y-2">
+                  {filteredTemplates.map((template) => (
+                    <div
+                      key={template.id}
+                      className="flex items-center space-x-2 p-2 bg-gray-100 rounded hover:bg-gray-200 cursor-pointer"
+                      onClick={() => loadTemplate(template)}
+                    >
+                      <Image
+                        src={template.previewImage}
+                        alt={template.name}
+                        width={50}
+                        height={50}
+                        className="object-cover rounded"
+                      />
+                      <span className="text-sm md:text-base">{template.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'Elements' && (
+              <div>
+                <h3 className="font-semibold mb-2 text-lg">Elements</h3>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => addShape('rectangle')}
+                    className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left text-sm md:text-base"
                   >
-                    <Image
-                      src={template.previewImage}
-                      alt={template.name}
-                      width={50}
-                      height={50}
-                      className="object-cover rounded"
-                    />
-                    <span>{template.name}</span>
-                  </div>
-                ))}
+                    Add Rectangle
+                  </button>
+                  <button
+                    onClick={() => addShape('circle')}
+                    className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left text-sm md:text-base"
+                  >
+                    Add Circle
+                  </button>
+                  <button
+                    onClick={() => addShape('triangle')}
+                    className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left text-sm md:text-base"
+                  >
+                    Add Triangle
+                  </button>
+                  <button
+                    onClick={() => addShape('ellipse')}
+                    className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left text-sm md:text-base"
+                  >
+                    Add Ellipse
+                  </button>
+                  <button
+                    onClick={() => addShape('line')}
+                    className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left text-sm md:text-base"
+                  >
+                    Add Line
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {activeTab === 'Elements' && (
-            <div>
-              <h3 className="font-semibold mb-2 text-lg">Elements</h3>
-              <div className="space-y-2">
-                <button
-                  onClick={() => addShape('rectangle')}
-                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
-                >
-                  Add Rectangle
-                </button>
-                <button
-                  onClick={() => addShape('circle')}
-                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
-                >
-                  Add Circle
-                </button>
-                <button
-                  onClick={() => addShape('triangle')}
-                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
-                >
-                  Add Triangle
-                </button>
-                <button
-                  onClick={() => addShape('ellipse')}
-                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
-                >
-                  Add Ellipse
-                </button>
-                <button
-                  onClick={() => addShape('line')}
-                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
-                >
-                  Add Line
-                </button>
+            {activeTab === 'Text' && (
+              <div>
+                <h3 className="font-semibold mb-2 text-lg">Add Text</h3>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => addText('Heading')}
+                    className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left text-sm md:text-base"
+                  >
+                    Add Heading
+                  </button>
+                  <button
+                    onClick={() => addText('Subheading')}
+                    className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left text-sm md:text-base"
+                  >
+                    Add Subheading
+                  </button>
+                  <button
+                    onClick={() => addText('Body')}
+                    className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left text-sm md:text-base"
+                  >
+                    Add Body Text
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {activeTab === 'Text' && (
-            <div>
-              <h3 className="font-semibold mb-2 text-lg">Add Text</h3>
-              <div className="space-y-2">
-                <button
-                  onClick={() => addText('Heading')}
-                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
-                >
-                  Add Heading
-                </button>
-                <button
-                  onClick={() => addText('Subheading')}
-                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
-                >
-                  Add Subheading
-                </button>
-                <button
-                  onClick={() => addText('Body')}
-                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left"
-                >
-                  Add Body Text
-                </button>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'Images' && (
-            <div>
-              <h3 className="font-semibold mb-2 text-lg">Add Image</h3>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={addImage}
-                className="border p-2 rounded w-full"
-              />
-            </div>
-          )}
-
-          {activeTab === 'Background' && (
-            <div>
-              <h3 className="font-semibold mb-2 text-lg">Background</h3>
-              <div className="space-y-2">
-                <label className="block">
-                  Color:
-                  <input
-                    type="color"
-                    value={backgroundColor}
-                    onChange={(e) => setBackgroundColor(e.target.value)}
-                    className="w-full h-10 mt-1"
-                  />
-                </label>
+            {activeTab === 'Images' && (
+              <div>
+                <h3 className="font-semibold mb-2 text-lg">Add Image</h3>
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={addBackgroundImage}
-                  className="border p-2 rounded w-full"
+                  onChange={addImage}
+                  className="border p-2 rounded w-full text-sm md:text-base"
                 />
-                <button
-                  onClick={removeBackground}
-                  className="bg-red-500 text-white px-4 py-2 rounded w-full hover:bg-red-600"
-                >
-                  Remove Background
-                </button>
               </div>
-            </div>
-          )}
+            )}
 
-          {activeTab === 'Uploads' && (
-            <div>
-              <h3 className="font-semibold mb-2 text-lg">Uploads</h3>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={addImage}
-                className="border p-2 rounded w-full mb-2"
-              />
-              <div className="space-y-2">
-                {uploadedImages.map((src, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center space-x-2 p-2 bg-gray-100 rounded hover:bg-gray-200 cursor-pointer"
-                    onClick={() => addUploadedImage(src)}
-                  >
-                    <Image
-                      src={src}
-                      alt={`Upload ${index}`}
-                      width={50}
-                      height={50}
-                      className="object-cover rounded"
+            {activeTab === 'Background' && (
+              <div>
+                <h3 className="font-semibold mb-2 text-lg">Background</h3>
+                <div className="space-y-2">
+                  <label className="block">
+                    Color:
+                    <input
+                      type="color"
+                      value={backgroundColor}
+                      onChange={(e) => setBackgroundColor(e.target.value)}
+                      className="w-full h-10 mt-1"
                     />
-                    <span>Image {index + 1}</span>
-                  </div>
-                ))}
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={addBackgroundImage}
+                    className="border p-2 rounded w-full text-sm md:text-base"
+                  />
+                  <button
+                    onClick={removeBackground}
+                    className="bg-red-500 text-white px-4 py-2 rounded w-full hover:bg-red-600 text-sm md:text-base"
+                  >
+                    Remove Background
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {activeTab === 'Uploads' && (
+              <div>
+                <h3 className="font-semibold mb-2 text-lg">Uploads</h3>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={addImage}
+                  className="border p-2 rounded w-full mb-2 text-sm md:text-base"
+                />
+                <div className="space-y-2">
+                  {uploadedImages.map((src, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center space-x-2 p-2 bg-gray-100 rounded hover:bg-gray-200 cursor-pointer"
+                      onClick={() => addUploadedImage(src)}
+                    >
+                      <Image
+                        src={src}
+                        alt={`Upload ${index}`}
+                        width={50}
+                        height={50}
+                        className="object-cover rounded"
+                      />
+                      <span className="text-sm md:text-base">Image {index + 1}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex-1 p-4 flex justify-center items-center bg-gray-200">
+        {/* Canvas (Center) */}
+        <div className="flex-1 p-4 flex justify-center items-center bg-gray-200 w-full">
           <div
+            className="overflow-auto w-full max-w-full"
             style={{
               transform: `scale(${zoom})`,
               transformOrigin: 'top left',
             }}
           >
-            <canvas ref={canvasRef} className="border shadow-lg" />
+            <canvas ref={canvasRef} className="border shadow-lg max-w-full" />
           </div>
         </div>
 
-        <div className="w-72 bg-white p-4 shadow-md overflow-y-auto">
-          <h2 className="text-lg font-bold mb-4">Properties & Layers</h2>
-          {selectedElement && (
-            <div className="mb-4">
-              <h3 className="font-semibold mb-2">Properties</h3>
-              {selectedElement.type === 'textbox' && (
-                <div className="space-y-2">
-                  <label className="block">
-                    Font Family:
-                    <select
-                      value={selectedElement.fontFamily || 'Arial'}
-                      onChange={(e) =>
-                        updateElementProperty('fontFamily', e.target.value)
-                      }
-                      className="border p-1 rounded w-full"
-                    >
-                      {fontFamilies.map((font) => (
-                        <option key={font} value={font}>
-                          {font}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block">
-                    Font Size:
-                    <input
-                      type="number"
-                      value={selectedElement.fontSize || 20}
-                      onChange={(e) =>
-                        updateElementProperty('fontSize', parseInt(e.target.value))
-                      }
-                      className="border p-1 rounded w-full"
-                    />
-                  </label>
-                  <label className="block">
-                    Font Weight:
-                    <select
-                      value={selectedElement.fontWeight || 'normal'}
-                      onChange={(e) =>
-                        updateElementProperty('fontWeight', e.target.value)
-                      }
-                      className="border p-1 rounded w-full"
-                    >
-                      <option value="normal">Normal</option>
-                      <option value="bold">Bold</option>
-                    </select>
-                  </label>
-                  <label className="block">
-                    Font Style:
-                    <select
-                      value={selectedElement.fontStyle || 'normal'}
-                      onChange={(e) =>
-                        updateElementProperty('fontStyle', e.target.value)
-                      }
-                      className="border p-1 rounded w-full"
-                    >
-                      <option value="normal">Normal</option>
-                      <option value="italic">Italic</option>
-                    </select>
-                  </label>
-                  <label className="block">
-                    Alignment:
-                    <select
-                      value={selectedElement.textAlign || 'left'}
-                      onChange={(e) =>
-                        updateElementProperty('textAlign', e.target.value)
-                      }
-                      className="border p-1 rounded w-full"
-                    >
-                      <option value="left">Left</option>
-                      <option value="center">Center</option>
-                      <option value="right">Right</option>
-                    </select>
-                  </label>
-                  <label className="block">
-                    Color:
-                    <input
-                      type="color"
-                      value={selectedElement.fill || '#000000'}
-                      onChange={(e) => updateElementProperty('fill', e.target.value)}
-                      className="w-full h-10"
-                    />
-                  </label>
-                  <label className="block">
-                    Opacity:
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={selectedElement.opacity || 1}
-                      onChange={(e) =>
-                        updateElementProperty('opacity', parseFloat(e.target.value))
-                      }
-                      className="w-full"
-                    />
-                  </label>
-                </div>
-              )}
-              {(selectedElement.type === 'image' || selectedElement.type === 'rect' || selectedElement.type === 'circle' || selectedElement.type === 'triangle' || selectedElement.type === 'ellipse' || selectedElement.type === 'line') && (
-                <div className="space-y-2">
-                  <label className="block">
-                    Opacity:
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={selectedElement.opacity || 1}
-                      onChange={(e) =>
-                        updateElementProperty('opacity', parseFloat(e.target.value))
-                      }
-                      className="w-full"
-                    />
-                  </label>
-                  <label className="block">
-                    Rotation:
-                    <input
-                      type="number"
-                      value={selectedElement.angle || 0}
-                      onChange={(e) =>
-                        updateElementProperty('angle', parseInt(e.target.value))
-                      }
-                      className="border p-1 rounded w-full"
-                    />
-                  </label>
-                  {selectedElement.type === 'image' && (
-                    <>
-                      <button
-                        onClick={() =>
-                          updateElementProperty('flipX', !selectedElement.flipX)
+        {/* Properties & Layers Sidebar (Right) */}
+        <div className="w-full md:w-72 bg-white p-4 shadow-md overflow-y-auto">
+          <div className="flex justify-between items-center mb-4 md:mb-0">
+            <h2 className="text-lg font-bold">Properties & Layers</h2>
+            <button
+              onClick={() => setShowProperties(!showProperties)}
+              className="md:hidden text-blue-500 hover:underline"
+            >
+              {showProperties ? 'Hide' : 'Show'} Properties
+            </button>
+          </div>
+          <div className={`${showProperties ? 'block' : 'hidden'} md:block`}>
+            {selectedElement && (
+              <div className="mb-4">
+                <h3 className="font-semibold mb-2">Properties</h3>
+                {selectedElement.type === 'textbox' && (
+                  <div className="space-y-2">
+                    <label className="block">
+                      Font Family:
+                      <select
+                        value={selectedElement.fontFamily || 'Arial'}
+                        onChange={(e) =>
+                          updateElementProperty('fontFamily', e.target.value)
                         }
-                        className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300"
+                        className="border p-1 rounded w-full text-sm md:text-base"
                       >
-                        Flip Horizontal
-                      </button>
-                      <button
-                        onClick={() =>
-                          updateElementProperty('flipY', !selectedElement.flipY)
+                        {fontFamilies.map((font) => (
+                          <option key={font} value={font}>
+                            {font}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block">
+                      Font Size:
+                      <input
+                        type="number"
+                        value={selectedElement.fontSize || 20}
+                        onChange={(e) =>
+                          updateElementProperty('fontSize', parseInt(e.target.value))
                         }
-                        className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300"
+                        className="border p-1 rounded w-full text-sm md:text-base"
+                      />
+                    </label>
+                    <label className="block">
+                      Font Weight:
+                      <select
+                        value={selectedElement.fontWeight || 'normal'}
+                        onChange={(e) =>
+                          updateElementProperty('fontWeight', e.target.value)
+                        }
+                        className="border p-1 rounded w-full text-sm md:text-base"
                       >
-                        Flip Vertical
-                      </button>
-                    </>
-                  )}
-                  {(selectedElement.type === 'rect' || selectedElement.type === 'circle' || selectedElement.type === 'triangle' || selectedElement.type === 'ellipse' || selectedElement.type === 'line') && (
-                    <>
-                      <label className="block">
-                        Fill Color:
-                        <input
-                          type="color"
-                          value={selectedElement.fill || '#ff0000'}
-                          onChange={(e) =>
-                            updateElementProperty('fill', e.target.value)
+                        <option value="normal">Normal</option>
+                        <option value="bold">Bold</option>
+                      </select>
+                    </label>
+                    <label className="block">
+                      Font Style:
+                      <select
+                        value={selectedElement.fontStyle || 'normal'}
+                        onChange={(e) =>
+                          updateElementProperty('fontStyle', e.target.value)
+                        }
+                        className="border p-1 rounded w-full text-sm md:text-base"
+                      >
+                        <option value="normal">Normal</option>
+                        <option value="italic">Italic</option>
+                      </select>
+                    </label>
+                    <label className="block">
+                      Alignment:
+                      <select
+                        value={selectedElement.textAlign || 'left'}
+                        onChange={(e) =>
+                          updateElementProperty('textAlign', e.target.value)
+                        }
+                        className="border p-1 rounded w-full text-sm md:text-base"
+                      >
+                        <option value="left">Left</option>
+                        <option value="center">Center</option>
+                        <option value="right">Right</option>
+                      </select>
+                    </label>
+                    <label className="block">
+                      Color:
+                      <input
+                        type="color"
+                        value={selectedElement.fill || '#000000'}
+                        onChange={(e) => updateElementProperty('fill', e.target.value)}
+                        className="w-full h-10"
+                      />
+                    </label>
+                    <label className="block">
+                      Opacity:
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={selectedElement.opacity || 1}
+                        onChange={(e) =>
+                          updateElementProperty('opacity', parseFloat(e.target.value))
+                        }
+                        className="w-full"
+                      />
+                    </label>
+                  </div>
+                )}
+                {(selectedElement.type === 'image' || selectedElement.type === 'rect' || selectedElement.type === 'circle' || selectedElement.type === 'triangle' || selectedElement.type === 'ellipse' || selectedElement.type === 'line') && (
+                  <div className="space-y-2">
+                    <label className="block">
+                      Opacity:
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={selectedElement.opacity || 1}
+                        onChange={(e) =>
+                          updateElementProperty('opacity', parseFloat(e.target.value))
+                        }
+                        className="w-full"
+                      />
+                    </label>
+                    <label className="block">
+                      Rotation:
+                      <input
+                        type="number"
+                        value={selectedElement.angle || 0}
+                        onChange={(e) =>
+                          updateElementProperty('angle', parseInt(e.target.value))
+                        }
+                        className="border p-1 rounded w-full text-sm md:text-base"
+                      />
+                    </label>
+                    {selectedElement.type === 'image' && (
+                      <>
+                        <button
+                          onClick={() =>
+                            updateElementProperty('flipX', !selectedElement.flipX)
                           }
-                          className="w-full h-10"
-                        />
-                      </label>
-                      <label className="block">
-                        Stroke Color:
-                        <input
-                          type="color"
-                          value={selectedElement.stroke || '#000000'}
-                          onChange={(e) =>
-                            updateElementProperty('stroke', e.target.value)
+                          className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-sm md:text-base"
+                        >
+                          Flip Horizontal
+                        </button>
+                        <button
+                          onClick={() =>
+                            updateElementProperty('flipY', !selectedElement.flipY)
                           }
-                          className="w-full h-10"
-                        />
-                      </label>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-          <h3 className="font-semibold mb-2">Layers</h3>
-          <div className="space-y-2">
-            {canvas?.getObjects().map((obj, index) => (
-              <div
-                key={index}
-                className="flex justify-between items-center p-2 bg-gray-100 rounded"
-              >
-                <span>{obj.type}</span>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => {
-                      if (canvas && !canvas._disposed) {
-                        canvas.setActiveObject(obj);
-                        canvas.renderAll();
-                      }
-                    }}
-                    className="text-blue-500 hover:text-blue-700"
-                  >
-                    Select
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (canvas && !canvas._disposed) {
-                        canvas.remove(obj);
-                        canvas.renderAll();
-                      }
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    Delete
-                  </button>
-                </div>
+                          className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-sm md:text-base"
+                        >
+                          Flip Vertical
+                        </button>
+                      </>
+                    )}
+                    {(selectedElement.type === 'rect' || selectedElement.type === 'circle' || selectedElement.type === 'triangle' || selectedElement.type === 'ellipse' || selectedElement.type === 'line') && (
+                      <>
+                        <label className="block">
+                          Fill Color:
+                          <input
+                            type="color"
+                            value={selectedElement.fill || '#ff0000'}
+                            onChange={(e) =>
+                              updateElementProperty('fill', e.target.value)
+                            }
+                            className="w-full h-10"
+                          />
+                        </label>
+                        <label className="block">
+                          Stroke Color:
+                          <input
+                            type="color"
+                            value={selectedElement.stroke || '#000000'}
+                            onChange={(e) =>
+                              updateElementProperty('stroke', e.target.value)
+                            }
+                            className="w-full h-10"
+                          />
+                        </label>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
-            ))}
+            )}
+            <h3 className="font-semibold mb-2">Layers</h3>
+            <div className="space-y-2">
+              {canvas?.getObjects().map((obj, index) => (
+                <div
+                  key={index}
+                  className="flex justify-between items-center p-2 bg-gray-100 rounded"
+                >
+                  <span className="text-sm md:text-base">{obj.type}</span>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => {
+                        if (canvas && !canvas._disposed) {
+                          canvas.setActiveObject(obj);
+                          canvas.renderAll();
+                        }
+                      }}
+                      className="text-blue-500 hover:text-blue-700 text-sm md:text-base"
+                    >
+                      Select
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (canvas && !canvas._disposed) {
+                          canvas.remove(obj);
+                          canvas.renderAll();
+                        }
+                      }}
+                      className="text-red-500 hover:text-red-700 text-sm md:text-base"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

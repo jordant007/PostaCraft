@@ -5,8 +5,8 @@ import { useSession, signIn } from 'next-auth/react';
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { templates } from '../components/TemplateSelector';
 import { fabric } from 'fabric';
+import { templates } from '../components/TemplateSelector'; // Import templates from TemplateSelector
 
 export default function DesignContent() {
   const { data: session, status } = useSession();
@@ -18,21 +18,28 @@ export default function DesignContent() {
   const [selectedElement, setSelectedElement] = useState(null);
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [showGrid, setShowGrid] = useState(false);
+  const [showFolds, setShowFolds] = useState(false);
+  const [showBleed, setShowBleed] = useState(false);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [activeTab, setActiveTab] = useState('Templates');
   const [designCategory, setDesignCategory] = useState('Poster Flyer Letter');
   const [canvasSize, setCanvasSize] = useState(null);
-  const [zoom, setZoom] = useState(0.5);
+  const [zoom, setZoom] = useState(1);
   const [uploadedImages, setUploadedImages] = useState([]);
   const [customDimensions, setCustomDimensions] = useState({ width: 816, height: 1056 });
   const [showCustomDimensions, setShowCustomDimensions] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isCanvasRefReady, setIsCanvasRefReady] = useState(false);
-  // Add state for toggling sidebars on mobile
   const [showTools, setShowTools] = useState(true);
   const [showProperties, setShowProperties] = useState(true);
+  const [designTitle, setDesignTitle] = useState('A New Design');
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [slides, setSlides] = useState([]);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [showFeaturePopup, setShowFeaturePopup] = useState(false);
 
   const designCategories = useMemo(() => ({
     'Poster Flyer Letter': { width: 816, height: 1056 },
@@ -40,6 +47,7 @@ export default function DesignContent() {
     'Event Flyer': { width: 800, height: 1200 },
     'Business Poster': { width: 800, height: 1200 },
     'Social Media Graphic': { width: 1080, height: 1080 },
+    'Custom': { width: 816, height: 1056 }, // Added Custom category
   }), []);
 
   const fontFamilies = ['Arial', 'Roboto', 'Times New Roman', 'Helvetica', 'Georgia'];
@@ -73,99 +81,9 @@ export default function DesignContent() {
     if (canvasRef.current) {
       setIsCanvasRefReady(true);
     }
-  }, []);
+  }, [canvasRef.current]);
 
-  // Define loadTemplate with useCallback to prevent redefinition on every render
-  const loadTemplate = useCallback((template) => {
-    if (!canvas || !fabric || canvas._disposed) {
-      console.error('Cannot load template: canvas or fabric not initialized or canvas is disposed');
-      return;
-    }
-    canvas.clear();
-    template.elements.forEach((el) => {
-      if (el.type === 'text') {
-        const textObj = new fabric.Textbox(el.text, {
-          left: el.left,
-          top: el.top,
-          fontSize: el.fontSize || 20,
-          fill: el.fill || '#000000',
-          fontFamily: el.fontFamily || 'Arial',
-          fontWeight: el.fontWeight || 'normal',
-          fontStyle: el.fontStyle || 'normal',
-          textAlign: el.textAlign || 'left',
-          editable: true,
-        });
-        canvas.add(textObj);
-      } else if (el.type === 'image') {
-        fabric.Image.fromURL(el.src, (img) => {
-          if (canvas._disposed) {
-            console.warn('Canvas disposed while loading image for template');
-            return;
-          }
-          img.set({ left: el.left, top: el.top, angle: el.angle || 0 });
-          img.scale(el.scale || 0.5);
-          canvas.add(img);
-          canvas.renderAll();
-        }, (err) => {
-          console.error('Error loading image for template:', err);
-        });
-      } else if (el.type === 'rect') {
-        const rect = new fabric.Rect({
-          left: el.left,
-          top: el.top,
-          width: el.width,
-          height: el.height,
-          fill: el.fill || '#ff0000',
-          stroke: el.stroke || '#000000',
-          strokeWidth: el.strokeWidth || 1,
-        });
-        canvas.add(rect);
-      } else if (el.type === 'circle') {
-        const circle = new fabric.Circle({
-          left: el.left,
-          top: el.top,
-          radius: el.radius,
-          fill: el.fill || '#00ff00',
-          stroke: el.stroke || '#000000',
-          strokeWidth: el.strokeWidth || 1,
-        });
-        canvas.add(circle);
-      } else if (el.type === 'triangle') {
-        const triangle = new fabric.Triangle({
-          left: el.left,
-          top: el.top,
-          width: el.width,
-          height: el.height,
-          fill: el.fill || '#0000ff',
-          stroke: el.stroke || '#000000',
-          strokeWidth: el.strokeWidth || 1,
-        });
-        canvas.add(triangle);
-      } else if (el.type === 'ellipse') {
-        const ellipse = new fabric.Ellipse({
-          left: el.left,
-          top: el.top,
-          rx: el.rx,
-          ry: el.ry,
-          fill: el.fill || '#ff00ff',
-          stroke: el.stroke || '#000000',
-          strokeWidth: el.strokeWidth || 1,
-        });
-        canvas.add(ellipse);
-      } else if (el.type === 'line') {
-        const line = new fabric.Line(el.points, {
-          stroke: el.stroke || '#000000',
-          strokeWidth: el.strokeWidth || 2,
-        });
-        canvas.add(line);
-      }
-    });
-    if (!canvas._disposed) {
-      canvas.renderAll();
-    }
-  }, [canvas, fabric]);
-
-  // Initialize canvas when canvasRef.current and canvasSize are available
+  // Initialize canvas
   useEffect(() => {
     if (!fabric || !fabric.Canvas || !isCanvasRefReady || !canvasSize?.width || !canvasSize?.height) {
       console.log('Skipping canvas initialization due to missing dependencies:', {
@@ -184,14 +102,14 @@ export default function DesignContent() {
       backgroundColor: '#ffffff',
       selection: true,
       preserveObjectStacking: true,
+      fireRightClick: true,
+      stopContextMenu: true,
     });
 
     const savedTemplate = localStorage.getItem('selectedTemplate');
-    console.log('Saved template from localStorage:', savedTemplate);
     if (savedTemplate) {
       try {
         const elements = JSON.parse(savedTemplate);
-        console.log('Parsed template elements:', elements);
         loadTemplate({ elements });
       } catch (error) {
         console.error('Error parsing saved template:', error);
@@ -212,10 +130,7 @@ export default function DesignContent() {
     });
 
     fabricCanvas.on('object:modified', () => {
-      if (fabricCanvas._disposed) {
-        console.warn('Canvas disposed during object:modified event');
-        return;
-      }
+      if (fabricCanvas._disposed) return;
       const state = JSON.stringify(fabricCanvas.toJSON());
       const newHistory = history.slice(0, historyIndex + 1);
       newHistory.push(state);
@@ -227,25 +142,131 @@ export default function DesignContent() {
 
     return () => {
       if (fabricCanvas && !fabricCanvas._disposed) {
-        try {
-          fabricCanvas.dispose();
-          fabricCanvas._disposed = true;
-        } catch (error) {
-          console.error('Error disposing canvas:', error);
-        }
+        fabricCanvas.dispose();
+        fabricCanvas._disposed = true;
       }
       setCanvas(null);
     };
   }, [canvasSize, isCanvasRefReady]);
 
+  // Add a timeout to handle loading failures
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        setIsLoading(false);
+        setError('Failed to load the editor. Please refresh the page.');
+      }
+    }, 10000);
+
+    return () => clearTimeout(timeout);
+  }, [isLoading]);
+
   // Update canvas background color
   useEffect(() => {
     if (canvas && !canvas._disposed) {
-      console.log('Updating background color to:', backgroundColor);
       canvas.backgroundColor = backgroundColor;
       canvas.renderAll();
     }
   }, [backgroundColor, canvas]);
+
+  // Handle Grid toggle
+  useEffect(() => {
+    if (!canvas || canvas._disposed) return;
+    canvas.getObjects().forEach((obj) => {
+      if (obj.type === 'line' && obj.gridLine) {
+        canvas.remove(obj);
+      }
+    });
+    if (showGrid) {
+      for (let i = 0; i < canvasSize.width; i += 50) {
+        const line = new fabric.Line([i, 0, i, canvasSize.height], {
+          stroke: '#ccc',
+          selectable: false,
+          evented: false,
+          gridLine: true,
+        });
+        canvas.add(line);
+      }
+      for (let i = 0; i < canvasSize.height; i += 50) {
+        const line = new fabric.Line([0, i, canvasSize.width, i], {
+          stroke: '#ccc',
+          selectable: false,
+          evented: false,
+          gridLine: true,
+        });
+        canvas.add(line);
+      }
+    }
+    canvas.renderAll();
+  }, [showGrid, canvas, canvasSize]);
+
+  // Handle Folds
+  useEffect(() => {
+    if (!canvas || canvas._disposed) return;
+    canvas.getObjects().forEach((obj) => {
+      if (obj.type === 'line' && obj.foldLine) {
+        canvas.remove(obj);
+      }
+    });
+    if (showFolds) {
+      const fold1 = canvasSize.width / 3;
+      const fold2 = (canvasSize.width * 2) / 3;
+      const line1 = new fabric.Line([fold1, 0, fold1, canvasSize.height], {
+        stroke: '#00f',
+        strokeDashArray: [5, 5],
+        selectable: false,
+        evented: false,
+        foldLine: true,
+      });
+      const line2 = new fabric.Line([fold2, 0, fold2, canvasSize.height], {
+        stroke: '#00f',
+        strokeDashArray: [5, 5],
+        selectable: false,
+        evented: false,
+        foldLine: true,
+      });
+      canvas.add(line1, line2);
+    }
+    canvas.renderAll();
+  }, [showFolds, canvas, canvasSize]);
+
+  // Handle Bleed
+  useEffect(() => {
+    if (!canvas || canvas._disposed) return;
+    canvas.getObjects().forEach((obj) => {
+      if (obj.type === 'rect' && obj.bleedArea) {
+        canvas.remove(obj);
+      }
+    });
+    if (showBleed) {
+      const bleedSize = 10;
+      const bleedRect = new fabric.Rect({
+        left: -bleedSize,
+        top: -bleedSize,
+        width: canvasSize.width + 2 * bleedSize,
+        height: canvasSize.height + 2 * bleedSize,
+        fill: 'transparent',
+        stroke: '#f00',
+        strokeWidth: 2,
+        selectable: false,
+        evented: false,
+        bleedArea: true,
+      });
+      canvas.add(bleedRect);
+    }
+    canvas.renderAll();
+  }, [showBleed, canvas, canvasSize]);
+
+  // Handle Drawing Mode
+  useEffect(() => {
+    if (!canvas || canvas._disposed) return;
+    canvas.isDrawingMode = isDrawingMode;
+    if (isDrawingMode) {
+      canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+      canvas.freeDrawingBrush.color = '#000000';
+      canvas.freeDrawingBrush.width = 5;
+    }
+  }, [isDrawingMode, canvas]);
 
   const handleCategoryChange = (category) => {
     setDesignCategory(category);
@@ -264,11 +285,89 @@ export default function DesignContent() {
     setShowCustomDimensions(false);
   };
 
-  const addText = (style = 'Body') => {
-    if (!canvas || !fabric || canvas._disposed) {
-      console.error('Cannot add text: canvas or fabric not initialized or canvas is disposed');
-      return;
+  const loadTemplate = useCallback((template) => {
+    if (!canvas || !fabric || canvas._disposed) return;
+    canvas.clear();
+    template.elements.forEach((el) => {
+      if (el.type === 'text') {
+        const textObj = new fabric.Textbox(el.text, {
+          left: el.left,
+          top: el.top,
+          fontSize: el.fontSize || 20,
+          fill: el.fill || '#000000',
+          fontFamily: el.fontFamily || 'Arial',
+          fontWeight: el.fontWeight || 'normal',
+          fontStyle: el.fontStyle || 'normal',
+          textAlign: el.textAlign || 'left',
+          editable: true,
+        });
+        canvas.add(textObj);
+      } else if (el.type === 'image') {
+        fabric.Image.fromURL(el.src, (img) => {
+          if (canvas._disposed) return;
+          img.set({ left: el.left, top: el.top, angle: el.angle || 0 });
+          img.scale(el.scale || 0.5);
+          canvas.add(img);
+          canvas.renderAll();
+        });
+      } else if (el.type === 'rect') {
+        const rect = new fabric.Rect({
+          left: el.left,
+          top: el.top,
+          width: el.width,
+          height: el.height,
+          fill: el.fill || 'transparent',
+          stroke: el.stroke || '#000000',
+          strokeWidth: el.strokeWidth || 1,
+        });
+        canvas.add(rect);
+      } else if (el.type === 'circle') {
+        const circle = new fabric.Circle({
+          left: el.left,
+          top: el.top,
+          radius: el.radius,
+          fill: el.fill || 'transparent',
+          stroke: el.stroke || '#000000',
+          strokeWidth: el.strokeWidth || 1,
+        });
+        canvas.add(circle);
+      } else if (el.type === 'triangle') {
+        const triangle = new fabric.Triangle({
+          left: el.left,
+          top: el.top,
+          width: el.width,
+          height: el.height,
+          fill: el.fill || 'transparent',
+          stroke: el.stroke || '#000000',
+          strokeWidth: el.strokeWidth || 1,
+        });
+        canvas.add(triangle);
+      } else if (el.type === 'ellipse') {
+        const ellipse = new fabric.Ellipse({
+          left: el.left,
+          top: el.top,
+          rx: el.rx,
+          ry: el.ry,
+          fill: el.fill || 'transparent',
+          stroke: el.stroke || '#000000',
+          strokeWidth: el.strokeWidth || 1,
+        });
+        canvas.add(ellipse);
+      } else if (el.type === 'line') {
+        const line = new fabric.Line(el.points, {
+          stroke: el.stroke || '#000000',
+          strokeWidth: el.strokeWidth || 1,
+        });
+        canvas.add(line);
+      }
+    });
+    if (!canvas._disposed) {
+      canvas.renderAll();
     }
+  }, [canvas, fabric]);
+
+  const addText = (style = 'Body') => {
+    if (!canvas || !fabric || canvas._disposed) return;
     const styles = {
       Heading: { fontSize: 40, fontWeight: 'bold', textAlign: 'center' },
       Subheading: { fontSize: 30, fontWeight: 'normal', textAlign: 'center' },
@@ -292,141 +391,49 @@ export default function DesignContent() {
   };
 
   const addImage = (e) => {
-    if (!canvas || !fabric || canvas._disposed) {
-      console.error('Cannot add image: canvas or fabric not initialized or canvas is disposed');
-      return;
-    }
+    if (!canvas || !fabric || canvas._disposed) return;
     const file = e.target.files[0];
-    if (!file) {
-      console.error('No file selected');
-      return;
-    }
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = (f) => {
       const data = f.target.result;
       fabric.Image.fromURL(data, (img) => {
-        if (canvas._disposed) {
-          console.warn('Canvas disposed while adding image');
-          return;
-        }
+        if (canvas._disposed) return;
         img.scale(0.5);
         img.set({ left: 100, top: 100 });
         canvas.add(img);
         canvas.setActiveObject(img);
         canvas.renderAll();
         setUploadedImages([...uploadedImages, data]);
-      }, (err) => {
-        console.error('Error loading image:', err);
       });
-    };
-    reader.onerror = (err) => {
-      console.error('Error reading file:', err);
     };
     reader.readAsDataURL(file);
   };
 
   const addUploadedImage = (src) => {
-    if (!canvas || !fabric || canvas._disposed) {
-      console.error('Cannot add uploaded image: canvas or fabric not initialized or canvas is disposed');
-      return;
-    }
+    if (!canvas || !fabric || canvas._disposed) return;
     fabric.Image.fromURL(src, (img) => {
-      if (canvas._disposed) {
-        console.warn('Canvas disposed while adding uploaded image');
-        return;
-      }
+      if (canvas._disposed) return;
       img.scale(0.5);
       img.set({ left: 100, top: 100 });
       canvas.add(img);
       canvas.setActiveObject(img);
       canvas.renderAll();
-    }, (err) => {
-      console.error('Error loading uploaded image:', err);
     });
   };
 
-  const addShape = (shapeType) => {
-    if (!canvas || !fabric || canvas._disposed) {
-      console.error('Cannot add shape: canvas or fabric not initialized or canvas is disposed');
-      return;
-    }
-    let shape;
-    if (shapeType === 'rectangle') {
-      shape = new fabric.Rect({
-        left: 100,
-        top: 100,
-        width: 100,
-        height: 60,
-        fill: '#ff0000',
-        stroke: '#000000',
-        strokeWidth: 1,
-      });
-    } else if (shapeType === 'circle') {
-      shape = new fabric.Circle({
-        left: 100,
-        top: 100,
-        radius: 50,
-        fill: '#00ff00',
-        stroke: '#000000',
-        strokeWidth: 1,
-      });
-    } else if (shapeType === 'triangle') {
-      shape = new fabric.Triangle({
-        left: 100,
-        top: 100,
-        width: 80,
-        height: 80,
-        fill: '#0000ff',
-        stroke: '#000000',
-        strokeWidth: 1,
-      });
-    } else if (shapeType === 'ellipse') {
-      shape = new fabric.Ellipse({
-        left: 100,
-        top: 100,
-        rx: 50,
-        ry: 30,
-        fill: '#ff00ff',
-        stroke: '#000000',
-        strokeWidth: 1,
-      });
-    } else if (shapeType === 'line') {
-      shape = new fabric.Line([100, 100, 200, 100], {
-        stroke: '#000000',
-        strokeWidth: 2,
-      });
-    }
-    if (shape) {
-      canvas.add(shape);
-      canvas.setActiveObject(shape);
-      canvas.renderAll();
-    }
-  };
-
   const addBackgroundImage = (e) => {
-    if (!canvas || canvas._disposed) {
-      console.error('Cannot add background image: canvas not initialized or disposed');
-      return;
-    }
+    if (!canvas || canvas._disposed) return;
     const file = e.target.files[0];
-    if (!file) {
-      console.error('No file selected for background image');
-      return;
-    }
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = (f) => {
       const data = f.target.result;
-      if (canvas._disposed) {
-        console.warn('Canvas disposed while setting background image');
-        return;
-      }
+      if (canvas._disposed) return;
       canvas.setBackgroundImage(data, canvas.renderAll.bind(canvas), {
         scaleX: canvas.width / canvasSize.width,
         scaleY: canvas.height / canvasSize.height,
       });
-    };
-    reader.onerror = (err) => {
-      console.error('Error reading background image file:', err);
     };
     reader.readAsDataURL(file);
   };
@@ -437,15 +444,42 @@ export default function DesignContent() {
     }
   };
 
-  const updateElementProperty = (property, value) => {
-    if (selectedElement && canvas && !canvas._disposed) {
-      console.log(`Updating ${property} to ${value} for element:`, selectedElement);
-      selectedElement.set(property, value);
+  const recordMedia = () => {
+    alert('Simulating media capture: A photo has been captured.');
+    const placeholderImage = 'https://via.placeholder.com/150';
+    fabric.Image.fromURL(placeholderImage, (img) => {
+      if (canvas._disposed) return;
+      img.scale(0.5);
+      img.set({ left: 100, top: 100 });
+      canvas.add(img);
+      canvas.setActiveObject(img);
       canvas.renderAll();
-      setSelectedElement({ ...selectedElement });
-    } else {
-      console.error('No element selected to update or canvas is disposed');
-    }
+    });
+  };
+
+  const addSlideshow = () => {
+    const newSlide = {
+      id: slides.length + 1,
+      elements: [],
+    };
+    setSlides([...slides, newSlide]);
+    setCurrentSlideIndex(slides.length);
+    alert('New slide added to slideshow.');
+  };
+
+  const addLayoutElement = (type) => {
+    const layoutText = type === 'schedule' ? 'Event Schedule\n9:00 AM - Opening\n10:00 AM - Keynote' : 'Menu\nAppetizer: Salad\nMain: Pasta';
+    const textObj = new fabric.Textbox(layoutText, {
+      left: 100,
+      top: 100,
+      fontSize: 20,
+      fill: '#000000',
+      fontFamily: 'Arial',
+      editable: true,
+    });
+    canvas.add(textObj);
+    canvas.setActiveObject(textObj);
+    canvas.renderAll();
   };
 
   const undo = () => {
@@ -464,6 +498,14 @@ export default function DesignContent() {
     }
   };
 
+  const saveDesign = () => {
+    if (canvas && !canvas._disposed) {
+      const designData = canvas.toJSON();
+      localStorage.setItem('savedDesign', JSON.stringify(designData));
+      alert('Design saved successfully!');
+    }
+  };
+
   const downloadCanvas = (format = 'png') => {
     if (canvas && !canvas._disposed) {
       const url = canvas.toDataURL({
@@ -474,39 +516,14 @@ export default function DesignContent() {
       link.download = `design.${format}`;
       link.href = url;
       link.click();
-    } else {
-      console.error('Cannot download: canvas not initialized or disposed');
     }
   };
 
-  const toggleGrid = () => {
-    if (!canvas || canvas._disposed) return;
-    setShowGrid(!showGrid);
-    if (!showGrid) {
-      for (let i = 0; i < canvasSize.width; i += 50) {
-        const line = new fabric.Line([i, 0, i, canvasSize.height], {
-          stroke: '#ccc',
-          selectable: false,
-          evented: false,
-        });
-        canvas.add(line);
-      }
-      for (let i = 0; i < canvasSize.height; i += 50) {
-        const line = new fabric.Line([0, i, canvasSize.width, i], {
-          stroke: '#ccc',
-          selectable: false,
-          evented: false,
-        });
-        canvas.add(line);
-      }
-    } else {
-      canvas.getObjects().forEach((obj) => {
-        if (obj.type === 'line') {
-          canvas.remove(obj);
-        }
-      });
+  const publishDesign = () => {
+    if (canvas && !canvas._disposed) {
+      const designData = canvas.toDataURL({ format: 'png', quality: 1 });
+      alert('Design published! Share this link: [Placeholder URL]');
     }
-    canvas.renderAll();
   };
 
   const handleZoom = (value) => {
@@ -634,89 +651,66 @@ export default function DesignContent() {
         </div>
       )}
 
-      {/* Top Toolbar */}
-      <div className="bg-white p-4 shadow-md flex flex-wrap justify-between items-center gap-2">
-        <div className="flex items-center space-x-2 flex-wrap">
-          <button
-            onClick={() => window.history.back()}
-            className="text-blue-500 hover:underline text-sm md:text-base"
-          >
-            Back
-          </button>
-          <select
-            value={designCategory}
-            onChange={(e) => handleCategoryChange(e.target.value)}
-            className="p-2 border rounded-lg text-sm md:text-base w-full md:w-auto"
-          >
-            {Object.keys(designCategories).map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-            <option value="Custom">Custom Dimensions</option>
-          </select>
-        </div>
-        <div className="flex items-center space-x-2">
-          <div className="flex items-center space-x-1">
-            <label className="text-gray-600 text-sm md:text-base">Zoom:</label>
-            <select
-              value={zoom}
-              onChange={(e) => handleZoom(parseFloat(e.target.value))}
-              className="p-2 border rounded-lg text-sm md:text-base"
+      {showFeaturePopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm text-center">
+            <h2 className="text-xl font-bold mb-4">Feature Coming Soon</h2>
+            <p className="mb-4">This feature is under development and will be available soon!</p>
+            <button
+              onClick={() => setShowFeaturePopup(false)}
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
-              <option value={0.25}>25%</option>
-              <option value={0.5}>50%</option>
-              <option value={1}>100%</option>
-              <option value={1.5}>150%</option>
-              <option value={2}>200%</option>
-            </select>
+              Close
+            </button>
           </div>
         </div>
-        <div className="flex space-x-2 flex-wrap gap-2">
-          <button
-            onClick={undo}
-            disabled={historyIndex <= 0}
-            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 text-sm md:text-base min-w-[60px]"
-          >
-            Undo
+      )}
+
+      {/* Top Toolbar */}
+      <div className="bg-blue-500 text-white p-2 flex justify-between items-center">
+        <div className="flex items-center space-x-2">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
+          <span className="font-bold">PosterMyWall</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <button onClick={undo} disabled={historyIndex <= 0} className="p-1 disabled:opacity-50">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+            </svg>
           </button>
-          <button
-            onClick={redo}
-            disabled={historyIndex >= history.length - 1}
-            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 text-sm md:text-base min-w-[60px]"
-          >
-            Redo
+          <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-1 disabled:opacity-50">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3" />
+            </svg>
           </button>
-          <button
-            onClick={() => alert('Preview feature coming soon!')}
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm md:text-base min-w-[60px]"
-          >
-            Preview
+          <button onClick={saveDesign} className="p-1">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+            </svg>
           </button>
-          <select
-            onChange={(e) => downloadCanvas(e.target.value)}
-            className="px-3 py-1 border rounded text-sm md:text-base"
-          >
-            <option value="">Download As...</option>
-            <option value="png">PNG</option>
-            <option value="jpeg">JPEG</option>
-            <option value="pdf">PDF (Beta)</option>
-          </select>
-          <button
-            onClick={() => alert('Share feature coming soon!')}
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm md:text-base min-w-[60px]"
-          >
-            Share
+          <button onClick={() => downloadCanvas('png')} className="bg-white text-blue-500 px-2 py-1 rounded flex items-center space-x-1">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span>Download</span>
+          </button>
+          <button onClick={publishDesign} className="bg-white text-blue-500 px-2 py-1 rounded flex items-center space-x-1">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            <span>Publish</span>
           </button>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex flex-col md:flex-row flex-1">
-        {/* Tools Sidebar (Left) */}
-        <div className="w-full md:w-72 bg-white p-4 shadow-md overflow-y-auto">
+        {/* Left Sidebar (Tools) */}
+        <div className="w-full md:w-64 bg-white p-4 shadow-md overflow-y-auto">
           <div className="flex justify-between items-center mb-4 md:mb-0">
-            <h2 className="text-lg font-bold">Tools</h2>
+            <h2 className="text-lg font-bold">Add</h2>
             <button
               onClick={() => setShowTools(!showTools)}
               className="md:hidden text-blue-500 hover:underline"
@@ -725,24 +719,70 @@ export default function DesignContent() {
             </button>
           </div>
           <div className={`${showTools ? 'block' : 'hidden'} md:block`}>
-            <div className="flex space-x-2 mb-4 flex-wrap gap-2">
-              {['Templates', 'Elements', 'Text', 'Images', 'Background', 'Uploads'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-3 py-1 rounded mb-2 text-sm md:text-base ${
-                    activeTab === tab
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 hover:bg-gray-300'
-                  }`}
+            <div className="space-y-4">
+              {[
+                { name: 'My Uploads', icon: 'M3 16h18M3 12h18m0 0l-9-9m9 9l-9 9', desc: 'Add from My Uploads, Google Drive, and more' },
+                { name: 'Templates', icon: 'M4 5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V5z', desc: 'Explore templates for your design' },
+                { name: 'Media', icon: 'M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z', desc: 'Add photos, videos, elements, and audio' },
+                { name: 'Text', icon: 'M9 5h6m-6 4h6m-6 4h6', desc: 'Choose from a variety of text styles' },
+                { name: 'AI', icon: 'M12 2a10 10 0 00-7.35 16.65M12 2a10 10 0 017.35 16.65M12 2v20', desc: 'Transform your ideas with AI' },
+                { name: 'Background', icon: 'M4 4h16v16H4z', desc: 'Change the background of your design' },
+                { name: 'Record', icon: 'M3 12h18M12 3v18', desc: 'Capture photos, videos, or audio' },
+                { name: 'Slideshow', icon: 'M15 5l5 5m0 0l-5 5m5-5H5', desc: 'Create text, photo, and video slideshows' },
+                { name: 'Draw', icon: 'M15 5l5 5m0 0l-5 5m5-5H5', desc: 'Use a free-hand drawing tool' },
+                { name: 'Layout', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16', desc: 'Add schedules, menus, tables, and more' },
+              ].map((tab) => (
+                <div
+                  key={tab.name}
+                  className={`p-2 rounded cursor-pointer ${activeTab === tab.name ? 'bg-blue-100' : 'hover:bg-gray-100'}`}
+                  onClick={() => setActiveTab(tab.name)}
                 >
-                  {tab}
-                </button>
+                  <div className="flex items-center space-x-2">
+                    <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} />
+                    </svg>
+                    <div>
+                      <h3 className="font-semibold">{tab.name}</h3>
+                      <p className="text-sm text-gray-600">{tab.desc}</p>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
 
+            {activeTab === 'My Uploads' && (
+              <div className="mt-4">
+                <h3 className="font-semibold mb-2 text-lg">My Uploads</h3>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={addImage}
+                  className="border p-2 rounded w-full text-sm md:text-base"
+                />
+                <div className="space-y-2 mt-2">
+                  {uploadedImages.map((src, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center space-x-2 p-2 bg-gray-100 rounded hover:bg-gray-200 cursor-pointer"
+                      onClick={() => addUploadedImage(src)}
+                    >
+                      <Image
+                        src={src}
+                        alt={`Upload ${index}`}
+                        width={50}
+                        height={50}
+                        style={{ width: 'auto', height: 'auto' }}
+                        className="object-cover rounded"
+                      />
+                      <span className="text-sm md:text-base">Image {index + 1}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {activeTab === 'Templates' && (
-              <div>
+              <div className="mt-4">
                 <h3 className="font-semibold mb-2 text-lg">Templates</h3>
                 <div className="space-y-2">
                   {filteredTemplates.map((template) => (
@@ -756,6 +796,7 @@ export default function DesignContent() {
                         alt={template.name}
                         width={50}
                         height={50}
+                        style={{ width: 'auto', height: 'auto' }}
                         className="object-cover rounded"
                       />
                       <span className="text-sm md:text-base">{template.name}</span>
@@ -765,46 +806,21 @@ export default function DesignContent() {
               </div>
             )}
 
-            {activeTab === 'Elements' && (
-              <div>
-                <h3 className="font-semibold mb-2 text-lg">Elements</h3>
-                <div className="space-y-2">
-                  <button
-                    onClick={() => addShape('rectangle')}
-                    className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left text-sm md:text-base"
-                  >
-                    Add Rectangle
-                  </button>
-                  <button
-                    onClick={() => addShape('circle')}
-                    className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left text-sm md:text-base"
-                  >
-                    Add Circle
-                  </button>
-                  <button
-                    onClick={() => addShape('triangle')}
-                    className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left text-sm md:text-base"
-                  >
-                    Add Triangle
-                  </button>
-                  <button
-                    onClick={() => addShape('ellipse')}
-                    className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left text-sm md:text-base"
-                  >
-                    Add Ellipse
-                  </button>
-                  <button
-                    onClick={() => addShape('line')}
-                    className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left text-sm md:text-base"
-                  >
-                    Add Line
-                  </button>
-                </div>
+            {activeTab === 'Media' && (
+              <div className="mt-4">
+                <h3 className="font-semibold mb-2 text-lg">Media</h3>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={addImage}
+                  className="border p-2 rounded w-full text-sm md:text-base"
+                />
+                <p className="text-sm text-gray-600 mt-2">Add photos, videos, elements, and audio (images only for now).</p>
               </div>
             )}
 
             {activeTab === 'Text' && (
-              <div>
+              <div className="mt-4">
                 <h3 className="font-semibold mb-2 text-lg">Add Text</h3>
                 <div className="space-y-2">
                   <button
@@ -829,20 +845,21 @@ export default function DesignContent() {
               </div>
             )}
 
-            {activeTab === 'Images' && (
-              <div>
-                <h3 className="font-semibold mb-2 text-lg">Add Image</h3>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={addImage}
-                  className="border p-2 rounded w-full text-sm md:text-base"
-                />
+            {activeTab === 'AI' && (
+              <div className="mt-4">
+                <h3 className="font-semibold mb-2 text-lg">AI Tools</h3>
+                <button
+                  onClick={() => setShowFeaturePopup(true)}
+                  className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm md:text-base"
+                >
+                  Generate AI Content
+                </button>
+                <p className="text-sm text-gray-600 mt-2">AI features coming soon.</p>
               </div>
             )}
 
             {activeTab === 'Background' && (
-              <div>
+              <div className="mt-4">
                 <h3 className="font-semibold mb-2 text-lg">Background</h3>
                 <div className="space-y-2">
                   <label className="block">
@@ -870,271 +887,283 @@ export default function DesignContent() {
               </div>
             )}
 
-            {activeTab === 'Uploads' && (
-              <div>
-                <h3 className="font-semibold mb-2 text-lg">Uploads</h3>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={addImage}
-                  className="border p-2 rounded w-full mb-2 text-sm md:text-base"
-                />
-                <div className="space-y-2">
-                  {uploadedImages.map((src, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center space-x-2 p-2 bg-gray-100 rounded hover:bg-gray-200 cursor-pointer"
-                      onClick={() => addUploadedImage(src)}
-                    >
-                      <Image
-                        src={src}
-                        alt={`Upload ${index}`}
-                        width={50}
-                        height={50}
-                        className="object-cover rounded"
-                      />
-                      <span className="text-sm md:text-base">Image {index + 1}</span>
+            {activeTab === 'Record' && (
+              <div className="mt-4">
+                <h3 className="font-semibold mb-2 text-lg">Record</h3>
+                <button
+                  onClick={recordMedia}
+                  className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm md:text-base"
+                >
+                  Capture Photo
+                </button>
+                <p className="text-sm text-gray-600 mt-2">Simulates capturing a photo.</p>
+              </div>
+            )}
+
+            {activeTab === 'Slideshow' && (
+              <div className="mt-4">
+                <h3 className="font-semibold mb-2 text-lg">Slideshow</h3>
+                <button
+                  onClick={addSlideshow}
+                  className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm md:text-base"
+                >
+                  Add Slide
+                </button>
+                {slides.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-sm">Slides: {slides.length}</p>
+                    <div className="flex space-x-2 mt-2">
+                      <button
+                        onClick={() => setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))}
+                        disabled={currentSlideIndex === 0}
+                        className="p-1 bg-gray-200 rounded disabled:opacity-50"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => setCurrentSlideIndex(Math.min(slides.length - 1, currentSlideIndex + 1))}
+                        disabled={currentSlideIndex === slides.length - 1}
+                        className="p-1 bg-gray-200 rounded disabled:opacity-50"
+                      >
+                        Next
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'Draw' && (
+              <div className="mt-4">
+                <h3 className="font-semibold mb-2 text-lg">Draw</h3>
+                <button
+                  onClick={() => setIsDrawingMode(!isDrawingMode)}
+                  className={`w-full p-2 rounded text-white ${isDrawingMode ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'} text-sm md:text-base`}
+                >
+                  {isDrawingMode ? 'Stop Drawing' : 'Start Drawing'}
+                </button>
+              </div>
+            )}
+
+            {activeTab === 'Layout' && (
+              <div className="mt-4">
+                <h3 className="font-semibold mb-2 text-lg">Layout</h3>
+                <button
+                  onClick={() => addLayoutElement('schedule')}
+                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left text-sm md:text-base"
+                >
+                  Add Schedule
+                </button>
+                <button
+                  onClick={() => addLayoutElement('menu')}
+                  className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-left text-sm md:text-base mt-2"
+                >
+                  Add Menu
+                </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Canvas (Center) */}
-        <div className="flex-1 p-4 flex justify-center items-center bg-gray-200 w-full">
+        {/* Central Canvas */}
+        <div className="flex-1 p-4 flex justify-center items-center bg-gray-200 relative">
           <div
             className="overflow-auto w-full max-w-full"
             style={{
               transform: `scale(${zoom})`,
-              transformOrigin: 'top left',
+              transformOrigin: 'center center',
             }}
           >
             <canvas ref={canvasRef} className="border shadow-lg max-w-full" />
           </div>
-        </div>
 
-        {/* Properties & Layers Sidebar (Right) */}
-        <div className="w-full md:w-72 bg-white p-4 shadow-md overflow-y-auto">
-          <div className="flex justify-between items-center mb-4 md:mb-0">
-            <h2 className="text-lg font-bold">Properties & Layers</h2>
+          {/* Mobile Bottom Toolbar */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white p-2 flex justify-around items-center shadow-lg">
             <button
-              onClick={() => setShowProperties(!showProperties)}
-              className="md:hidden text-blue-500 hover:underline"
+              onClick={() => setIsAddMenuOpen(true)}
+              className="flex flex-col items-center text-blue-500"
             >
-              {showProperties ? 'Hide' : 'Show'} Properties
+              <div className="bg-blue-500 text-white rounded-full p-2">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <span className="text-xs mt-1">Add</span>
+            </button>
+            <button onClick={() => setShowCustomDimensions(true)} className="flex flex-col items-center">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h8m-4-4v8m-4 4h8" />
+              </svg>
+              <span className="text-xs mt-1">Resize</span>
+            </button>
+            <button onClick={() => setActiveTab('Background')} className="flex flex-col items-center">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4h16v16H4z" />
+              </svg>
+              <span className="text-xs mt-1">Background</span>
+            </button>
+            <button onClick={() => setActiveTab('Text')} className="flex flex-col items-center">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5h6m-6 4h6m-6 4h6" />
+              </svg>
+              <span className="text-xs mt-1">Title</span>
+            </button>
+            <button onClick={() => setShowGrid(!showGrid)} className="flex flex-col items-center">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+              <span className="text-xs mt-1">Grid</span>
+            </button>
+            <button onClick={() => setShowFolds(!showFolds)} className="flex flex-col items-center">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+              <span className="text-xs mt-1">Folds</span>
+            </button>
+            <button onClick={() => setShowBleed(!showBleed)} className="flex flex-col items-center">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4h16v16H4z" />
+              </svg>
+              <span className="text-xs mt-1">Bleed</span>
             </button>
           </div>
-          <div className={`${showProperties ? 'block' : 'hidden'} md:block`}>
-            {selectedElement && (
-              <div className="mb-4">
-                <h3 className="font-semibold mb-2">Properties</h3>
-                {selectedElement.type === 'textbox' && (
-                  <div className="space-y-2">
-                    <label className="block">
-                      Font Family:
-                      <select
-                        value={selectedElement.fontFamily || 'Arial'}
-                        onChange={(e) =>
-                          updateElementProperty('fontFamily', e.target.value)
-                        }
-                        className="border p-1 rounded w-full text-sm md:text-base"
-                      >
-                        {fontFamilies.map((font) => (
-                          <option key={font} value={font}>
-                            {font}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="block">
-                      Font Size:
-                      <input
-                        type="number"
-                        value={selectedElement.fontSize || 20}
-                        onChange={(e) =>
-                          updateElementProperty('fontSize', parseInt(e.target.value))
-                        }
-                        className="border p-1 rounded w-full text-sm md:text-base"
-                      />
-                    </label>
-                    <label className="block">
-                      Font Weight:
-                      <select
-                        value={selectedElement.fontWeight || 'normal'}
-                        onChange={(e) =>
-                          updateElementProperty('fontWeight', e.target.value)
-                        }
-                        className="border p-1 rounded w-full text-sm md:text-base"
-                      >
-                        <option value="normal">Normal</option>
-                        <option value="bold">Bold</option>
-                      </select>
-                    </label>
-                    <label className="block">
-                      Font Style:
-                      <select
-                        value={selectedElement.fontStyle || 'normal'}
-                        onChange={(e) =>
-                          updateElementProperty('fontStyle', e.target.value)
-                        }
-                        className="border p-1 rounded w-full text-sm md:text-base"
-                      >
-                        <option value="normal">Normal</option>
-                        <option value="italic">Italic</option>
-                      </select>
-                    </label>
-                    <label className="block">
-                      Alignment:
-                      <select
-                        value={selectedElement.textAlign || 'left'}
-                        onChange={(e) =>
-                          updateElementProperty('textAlign', e.target.value)
-                        }
-                        className="border p-1 rounded w-full text-sm md:text-base"
-                      >
-                        <option value="left">Left</option>
-                        <option value="center">Center</option>
-                        <option value="right">Right</option>
-                      </select>
-                    </label>
-                    <label className="block">
-                      Color:
-                      <input
-                        type="color"
-                        value={selectedElement.fill || '#000000'}
-                        onChange={(e) => updateElementProperty('fill', e.target.value)}
-                        className="w-full h-10"
-                      />
-                    </label>
-                    <label className="block">
-                      Opacity:
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        value={selectedElement.opacity || 1}
-                        onChange={(e) =>
-                          updateElementProperty('opacity', parseFloat(e.target.value))
-                        }
-                        className="w-full"
-                      />
-                    </label>
-                  </div>
-                )}
-                {(selectedElement.type === 'image' || selectedElement.type === 'rect' || selectedElement.type === 'circle' || selectedElement.type === 'triangle' || selectedElement.type === 'ellipse' || selectedElement.type === 'line') && (
-                  <div className="space-y-2">
-                    <label className="block">
-                      Opacity:
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        value={selectedElement.opacity || 1}
-                        onChange={(e) =>
-                          updateElementProperty('opacity', parseFloat(e.target.value))
-                        }
-                        className="w-full"
-                      />
-                    </label>
-                    <label className="block">
-                      Rotation:
-                      <input
-                        type="number"
-                        value={selectedElement.angle || 0}
-                        onChange={(e) =>
-                          updateElementProperty('angle', parseInt(e.target.value))
-                        }
-                        className="border p-1 rounded w-full text-sm md:text-base"
-                      />
-                    </label>
-                    {selectedElement.type === 'image' && (
-                      <>
-                        <button
-                          onClick={() =>
-                            updateElementProperty('flipX', !selectedElement.flipX)
-                          }
-                          className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-sm md:text-base"
-                        >
-                          Flip Horizontal
-                        </button>
-                        <button
-                          onClick={() =>
-                            updateElementProperty('flipY', !selectedElement.flipY)
-                          }
-                          className="w-full p-2 bg-gray-200 rounded hover:bg-gray-300 text-sm md:text-base"
-                        >
-                          Flip Vertical
-                        </button>
-                      </>
-                    )}
-                    {(selectedElement.type === 'rect' || selectedElement.type === 'circle' || selectedElement.type === 'triangle' || selectedElement.type === 'ellipse' || selectedElement.type === 'line') && (
-                      <>
-                        <label className="block">
-                          Fill Color:
-                          <input
-                            type="color"
-                            value={selectedElement.fill || '#ff0000'}
-                            onChange={(e) =>
-                              updateElementProperty('fill', e.target.value)
-                            }
-                            className="w-full h-10"
-                          />
-                        </label>
-                        <label className="block">
-                          Stroke Color:
-                          <input
-                            type="color"
-                            value={selectedElement.stroke || '#000000'}
-                            onChange={(e) =>
-                              updateElementProperty('stroke', e.target.value)
-                            }
-                            className="w-full h-10"
-                          />
-                        </label>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-            <h3 className="font-semibold mb-2">Layers</h3>
-            <div className="space-y-2">
-              {canvas?.getObjects().map((obj, index) => (
-                <div
-                  key={index}
-                  className="flex justify-between items-center p-2 bg-gray-100 rounded"
-                >
-                  <span className="text-sm md:text-base">{obj.type}</span>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => {
-                        if (canvas && !canvas._disposed) {
-                          canvas.setActiveObject(obj);
-                          canvas.renderAll();
-                        }
-                      }}
-                      className="text-blue-500 hover:text-blue-700 text-sm md:text-base"
-                    >
-                      Select
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (canvas && !canvas._disposed) {
-                          canvas.remove(obj);
-                          canvas.renderAll();
-                        }
-                      }}
-                      className="text-red-500 hover:text-red-700 text-sm md:text-base"
-                    >
-                      Delete
-                    </button>
-                  </div>
+
+          {/* Mobile Add Menu */}
+          {isAddMenuOpen && (
+            <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white p-4 rounded-lg w-full max-w-sm">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-bold">Add</h2>
+                  <button onClick={() => setIsAddMenuOpen(false)} className="text-gray-600">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
-              ))}
+                <div className="space-y-4">
+                  {[
+                    { name: 'My Uploads', icon: 'M3 16h18M3 12h18m0 0l-9-9m9 9l-9 9', desc: 'Add from My Uploads, Google Drive, and more' },
+                    { name: 'Templates', icon: 'M4 5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V5z', desc: 'Explore templates for your design' },
+                    { name: 'Media', icon: 'M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z', desc: 'Add photos, videos, elements, and audio' },
+                    { name: 'Text', icon: 'M9 5h6m-6 4h6m-6 4h6', desc: 'Choose from a variety of text styles' },
+                    { name: 'AI', icon: 'M12 2a10 10 0 00-7.35 16.65M12 2a10 10 0 017.35 16.65M12 2v20', desc: 'Transform your ideas with AI' },
+                    { name: 'Record', icon: 'M3 12h18M12 3v18', desc: 'Capture photos, videos, or audio' },
+                    { name: 'Slideshow', icon: 'M15 5l5 5m0 0l-5 5m5-5H5', desc: 'Create text, photo, and video slideshows' },
+                    { name: 'Draw', icon: 'M15 5l5 5m0 0l-5 5m5-5H5', desc: 'Use a free-hand drawing tool' },
+                    { name: 'Layout', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16', desc: 'Add schedules, menus, tables, and more' },
+                  ].map((tab) => (
+                    <div
+                      key={tab.name}
+                      className="p-2 rounded cursor-pointer hover:bg-gray-100"
+                      onClick={() => {
+                        setActiveTab(tab.name);
+                        setIsAddMenuOpen(false);
+                      }}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} />
+                        </svg>
+                        <div>
+                          <h3 className="font-semibold">{tab.name}</h3>
+                          <p className="text-sm text-gray-600">{tab.desc}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Sidebar (Design Properties) */}
+        <div className="hidden md:block w-64 bg-white p-4 shadow-md overflow-y-auto">
+          <h2 className="text-lg font-bold mb-4">Design</h2>
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-semibold">Size</h3>
+              <p className="text-sm text-gray-600">Flyer (US Letter) 8.5in x 11in</p>
+              <select
+                value={designCategory}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+                className="border p-1 rounded w-full mt-1"
+              >
+                {Object.keys(designCategories).map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <h3 className="font-semibold">Background</h3>
+              <select className="border p-1 rounded w-full mt-1">
+                <option>Solid Color</option>
+              </select>
+              <label className="block mt-2">
+                Color:
+                <input
+                  type="color"
+                  value={backgroundColor}
+                  onChange={(e) => setBackgroundColor(e.target.value)}
+                  className="w-full h-10 mt-1"
+                />
+              </label>
+            </div>
+            <div>
+              <h3 className="font-semibold">Title</h3>
+              <input
+                type="text"
+                value={designTitle}
+                onChange={(e) => setDesignTitle(e.target.value)}
+                className="border p-1 rounded w-full mt-1"
+              />
+            </div>
+            <div>
+              <h3 className="font-semibold">Layout</h3>
+              <div className="flex justify-between items-center mt-2">
+                <span>Grid</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showGrid}
+                    onChange={() => setShowGrid(!showGrid)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-500">
+                    <div className={`w-5 h-5 bg-white rounded-full transform transition-transform ${showGrid ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                  </div>
+                </label>
+              </div>
+              <div className="flex justify-between items-center mt-2">
+                <span>Folds</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showFolds}
+                    onChange={() => setShowFolds(!showFolds)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-500">
+                    <div className={`w-5 h-5 bg-white rounded-full transform transition-transform ${showFolds ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                  </div>
+                </label>
+              </div>
+              <div className="flex justify-between items-center mt-2">
+                <span>Bleed</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showBleed}
+                    onChange={() => setShowBleed(!showBleed)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-500">
+                    <div className={`w-5 h-5 bg-white rounded-full transform transition-transform ${showBleed ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                  </div>
+                </label>
+              </div>
             </div>
           </div>
         </div>

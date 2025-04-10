@@ -22,7 +22,7 @@ export default function DesignContent() {
   const [showBleed, setShowBleed] = useState(false);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [activeTab, setActiveTab] = useState('Templates');
+  const [activeTab, setActiveTab] = useState(null); // Changed to null to control modal visibility
   const [designCategory, setDesignCategory] = useState('Poster Flyer Letter');
   const [canvasSize, setCanvasSize] = useState({ width: 816, height: 1056 });
   const [zoom, setZoom] = useState(1);
@@ -38,6 +38,17 @@ export default function DesignContent() {
   const [slides, setSlides] = useState([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [showFeaturePopup, setShowFeaturePopup] = useState(false);
+  const [textStyles, setTextStyles] = useState({
+    fontFamily: 'Arial',
+    fontSize: 20,
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textAlign: 'left',
+    fill: '#000000',
+    opacity: 1,
+    lineHeight: 1.2,
+    charSpacing: 0,
+  });
 
   const designCategories = useMemo(() => ({
     'Poster Flyer Letter': { width: 816, height: 1056 },
@@ -112,14 +123,39 @@ export default function DesignContent() {
 
     setCanvas(fabricCanvas);
 
-    // Add detailed logging for selection events
     fabricCanvas.on('selection:created', (e) => {
       console.log('Selection created:', e.target);
       setSelectedElement(e.target);
+      if (e.target.type === 'textbox') {
+        setTextStyles({
+          fontFamily: e.target.fontFamily || 'Arial',
+          fontSize: e.target.fontSize || 20,
+          fontWeight: e.target.fontWeight || 'normal',
+          fontStyle: e.target.fontStyle || 'normal',
+          textAlign: e.target.textAlign || 'left',
+          fill: e.target.fill || '#000000',
+          opacity: e.target.opacity || 1,
+          lineHeight: e.target.lineHeight || 1.2,
+          charSpacing: e.target.charSpacing || 0,
+        });
+      }
     });
     fabricCanvas.on('selection:updated', (e) => {
       console.log('Selection updated:', e.target);
       setSelectedElement(e.target);
+      if (e.target.type === 'textbox') {
+        setTextStyles({
+          fontFamily: e.target.fontFamily || 'Arial',
+          fontSize: e.target.fontSize || 20,
+          fontWeight: e.target.fontWeight || 'normal',
+          fontStyle: e.target.fontStyle || 'normal',
+          textAlign: e.target.textAlign || 'left',
+          fill: e.target.fill || '#000000',
+          opacity: e.target.opacity || 1,
+          lineHeight: e.target.lineHeight || 1.2,
+          charSpacing: e.target.charSpacing || 0,
+        });
+      }
     });
     fabricCanvas.on('selection:cleared', () => {
       console.log('Selection cleared');
@@ -162,7 +198,7 @@ export default function DesignContent() {
   // Add keyboard event listener for deleting elements
   useEffect(() => {
     const handleKeyDown = (e) => {
-      console.log('Key pressed:', e.key); // Log all key presses
+      console.log('Key pressed:', e.key);
       if (e.key === 'Delete' && canvas && !canvas._disposed) {
         console.log('Delete key pressed, checking for active object...');
         const activeObject = canvas.getActiveObject();
@@ -180,7 +216,6 @@ export default function DesignContent() {
           setSelectedElement(null);
           canvas.renderAll();
 
-          // Update history after deletion
           const state = JSON.stringify(canvas.toJSON());
           const newHistory = history.slice(0, historyIndex + 1);
           newHistory.push(state);
@@ -428,7 +463,7 @@ export default function DesignContent() {
       Body: { fontSize: 20, fontWeight: 'normal', textAlign: 'left' },
     };
     const textStyle = styles[style] || styles.Body;
-    const textObj = new fabric.Textbox(text || 'Enter text', {
+    const textObj = new fabric.Textbox(text || 'add your text', {
       left: 100,
       top: 100,
       fontSize: textStyle.fontSize,
@@ -443,6 +478,26 @@ export default function DesignContent() {
     canvas.setActiveObject(textObj);
     canvas.renderAll();
   };
+
+  const updateTextStyles = () => {
+    if (!canvas || !selectedElement || selectedElement.type !== 'textbox') return;
+    selectedElement.set({
+      fontFamily: textStyles.fontFamily,
+      fontSize: textStyles.fontSize,
+      fontWeight: textStyles.fontWeight,
+      fontStyle: textStyles.fontStyle,
+      textAlign: textStyles.textAlign,
+      fill: textStyles.fill,
+      opacity: textStyles.opacity,
+      lineHeight: textStyles.lineHeight,
+      charSpacing: textStyles.charSpacing,
+    });
+    canvas.renderAll();
+  };
+
+  useEffect(() => {
+    updateTextStyles();
+  }, [textStyles, selectedElement, canvas]);
 
   const addImage = (e) => {
     if (!canvas || !fabric || canvas._disposed) {
@@ -598,7 +653,6 @@ export default function DesignContent() {
         setSelectedElement(null);
         canvas.renderAll();
 
-        // Update history after deletion
         const state = JSON.stringify(canvas.toJSON());
         const newHistory = history.slice(0, historyIndex + 1);
         newHistory.push(state);
@@ -788,7 +842,7 @@ export default function DesignContent() {
       {/* Top Toolbar */}
       <div className="bg-blue-500 text-white p-2 flex justify-between items-center">
         <div className="flex items-center space-x-2">
-          {/* Removed PosterMyWall label */}
+          <span className="font-bold">PosterMyWall</span>
         </div>
         <div className="flex items-center space-x-2">
           <button onClick={undo} disabled={historyIndex <= 0} className="p-1 disabled:opacity-50">
@@ -874,40 +928,82 @@ export default function DesignContent() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* Modal for Tools */}
+        {activeTab && (
+          <div className="absolute left-64 top-16 z-50 bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold text-lg">{activeTab}</h3>
+              <button onClick={() => setActiveTab(null)} className="text-gray-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
             {activeTab === 'My Uploads' && (
-              <div className="mt-4">
+              <div>
                 <h3 className="font-semibold mb-2 text-lg">My Uploads</h3>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={addImage}
-                  className="border p-2 rounded w-full text-sm md:text-base"
-                />
-                <div className="space-y-2 mt-2">
-                  {uploadedImages.map((src, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center space-x-2 p-2 bg-gray-100 rounded hover:bg-gray-200 cursor-pointer"
-                      onClick={() => addUploadedImage(src)}
-                    >
-                      <Image
-                        src={src}
-                        alt={`Upload ${index}`}
-                        width={50}
-                        height={50}
-                        style={{ width: 'auto', height: 'auto' }}
-                        className="object-cover rounded"
+                <p className="text-sm text-gray-600 mb-2">Add your media or record directly from your device.</p>
+                <div className="flex space-x-2 mb-4">
+                  <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    <label className="cursor-pointer">
+                      Upload media
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={addImage}
+                        className="hidden"
                       />
-                      <span className="text-sm md:text-base">Image {index + 1}</span>
-                    </div>
-                  ))}
+                    </label>
+                  </button>
+                  <button onClick={recordMedia} className="border border-gray-300 px-4 py-2 rounded hover:bg-gray-100">
+                    Record media
+                  </button>
+                  <button onClick={() => setShowFeaturePopup(true)} className="border border-gray-300 px-4 py-2 rounded hover:bg-gray-100">
+                    Generate
+                  </button>
                 </div>
+                <div className="flex space-x-2 mb-4">
+                  <button className="border border-blue-500 text-blue-500 px-4 py-1 rounded">My Photos</button>
+                  <button className="border border-gray-300 px-4 py-1 rounded">My Videos</button>
+                  <button className="border border-gray-300 px-4 py-1 rounded">My Audio</button>
+                </div>
+                {uploadedImages.length === 0 ? (
+                  <div className="text-center">
+                    <p className="text-gray-600 mb-2">You haven't uploaded any media yet.</p>
+                    <button className="border border-gray-300 px-4 py-2 rounded hover:bg-gray-100">
+                      Add stock media
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {uploadedImages.map((src, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center space-x-2 p-2 bg-gray-100 rounded hover:bg-gray-200 cursor-pointer"
+                        onClick={() => addUploadedImage(src)}
+                      >
+                        <Image
+                          src={src}
+                          alt={`Upload ${index}`}
+                          width={50}
+                          height={50}
+                          style={{ width: 'auto', height: 'auto' }}
+                          className="object-cover rounded"
+                        />
+                        <span className="text-sm md:text-base">Image {index + 1}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
             {activeTab === 'Templates' && (
-              <div className="mt-4">
+              <div>
                 <h3 className="font-semibold mb-2 text-lg">Templates</h3>
                 <div className="space-y-2">
                   {filteredTemplates.map((template) => (
@@ -932,7 +1028,7 @@ export default function DesignContent() {
             )}
 
             {activeTab === 'Media' && (
-              <div className="mt-4">
+              <div>
                 <h3 className="font-semibold mb-2 text-lg">Media</h3>
                 <input
                   type="file"
@@ -945,7 +1041,7 @@ export default function DesignContent() {
             )}
 
             {activeTab === 'Text' && (
-              <div className="mt-4">
+              <div>
                 <h3 className="font-semibold mb-2 text-lg">Add Text</h3>
                 <div className="space-y-2">
                   <button
@@ -971,7 +1067,7 @@ export default function DesignContent() {
             )}
 
             {activeTab === 'AI' && (
-              <div className="mt-4">
+              <div>
                 <h3 className="font-semibold mb-2 text-lg">AI Tools</h3>
                 <button
                   onClick={() => setShowFeaturePopup(true)}
@@ -984,11 +1080,11 @@ export default function DesignContent() {
             )}
 
             {activeTab === 'Background' && (
-              <div className="mt-4">
-                <h3 className="font-semibold mb-2 text-lg">Background</h3>
+              <div>
+                <h3 className="font-semibold mb-2 text-lg">Solid Color Background</h3>
                 <div className="space-y-2">
                   <label className="block">
-                    Color:
+                    Pick a color:
                     <input
                       type="color"
                       value={backgroundColor}
@@ -996,15 +1092,45 @@ export default function DesignContent() {
                       className="w-full h-10 mt-1"
                     />
                   </label>
+                  <div className="grid grid-cols-5 gap-2 mt-2">
+                    {[
+                      '#FFFFFF', '#F5F5F5', '#E5E5E5', '#D5D5D5', '#C5C5C5',
+                      '#B5B5B5', '#A5A5A5', '#95A5A5', '#85A5A5', '#75A5A5',
+                      '#65A5A5', '#55A5A5', '#45A5A5', '#35A5A5', '#25A5A5',
+                      '#FF6347', '#FF4500', '#FF0000', '#C71585', '#FF1493',
+                      '#FFD700', '#FFA500', '#FF8C00', '#000000', '#2F4F4F',
+                    ].map((color) => (
+                      <div
+                        key={color}
+                        className="w-8 h-8 rounded cursor-pointer"
+                        style={{ backgroundColor: color }}
+                        onClick={() => setBackgroundColor(color)}
+                      />
+                    ))}
+                  </div>
                   <input
                     type="file"
                     accept="image/*"
                     onChange={addBackgroundImage}
-                    className="border p-2 rounded w-full text-sm md:text-base"
+                    className="border p-2 rounded w-full text-sm md:text-base mt-2"
                   />
+                  <div className="flex space-x-2 mt-2">
+                    <button
+                      className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                      onClick={() => setBackgroundColor(backgroundColor)}
+                    >
+                      Solid
+                    </button>
+                    <button
+                      className="border border-gray-300 px-4 py-2 rounded hover:bg-gray-100"
+                      onClick={() => setShowFeaturePopup(true)}
+                    >
+                      Gradient
+                    </button>
+                  </div>
                   <button
                     onClick={removeBackground}
-                    className="bg-red-500 text-white px-4 py-2 rounded w-full hover:bg-red-600 text-sm md:text-base"
+                    className="bg-red-500 text-white px-4 py-2 rounded w-full hover:bg-red-600 text-sm md:text-base mt-2"
                   >
                     Remove Background
                   </button>
@@ -1013,7 +1139,7 @@ export default function DesignContent() {
             )}
 
             {activeTab === 'Record' && (
-              <div className="mt-4">
+              <div>
                 <h3 className="font-semibold mb-2 text-lg">Record</h3>
                 <button
                   onClick={recordMedia}
@@ -1026,7 +1152,7 @@ export default function DesignContent() {
             )}
 
             {activeTab === 'Slideshow' && (
-              <div className="mt-4">
+              <div>
                 <h3 className="font-semibold mb-2 text-lg">Slideshow</h3>
                 <button
                   onClick={addSlideshow}
@@ -1059,7 +1185,7 @@ export default function DesignContent() {
             )}
 
             {activeTab === 'Draw' && (
-              <div className="mt-4">
+              <div>
                 <h3 className="font-semibold mb-2 text-lg">Draw</h3>
                 <button
                   onClick={() => setIsDrawingMode(!isDrawingMode)}
@@ -1071,7 +1197,7 @@ export default function DesignContent() {
             )}
 
             {activeTab === 'Layout' && (
-              <div className="mt-4">
+              <div>
                 <h3 className="font-semibold mb-2 text-lg">Layout</h3>
                 <button
                   onClick={() => addLayoutElement('schedule')}
@@ -1087,19 +1213,30 @@ export default function DesignContent() {
                 </button>
               </div>
             )}
+
+            {activeTab !== 'Background' && (
+              <button
+                onClick={() => setActiveTab(null)}
+                className="bg-blue-500 text-white px-4 py-2 rounded w-full hover:bg-blue-600 mt-4"
+              >
+                Apply changes
+              </button>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Central Canvas */}
         <div className="flex-1 p-4 flex justify-center items-center bg-gray-200 relative">
           <div
-            className="overflow-auto w-full max-w-full"
+            className="overflow-auto"
             style={{
-              transform: `scale(${zoom})`,
-              transformOrigin: 'center center',
+              width: `${canvasSize.width * zoom}px`,
+              height: `${canvasSize.height * zoom}px`,
+              maxWidth: '100%',
+              maxHeight: '100%',
             }}
           >
-            <canvas ref={canvasRef} className="border shadow-lg max-w-full" />
+            <canvas ref={canvasRef} className="border shadow-lg" />
           </div>
 
           {/* Mobile Bottom Toolbar */}
@@ -1132,6 +1269,12 @@ export default function DesignContent() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5h6m-6 4h6m-6 4h6" />
               </svg>
               <span className="text-xs mt-1">Title</span>
+            </button>
+            <button onClick={deleteSelectedElement} disabled={!canvas || !canvas.getActiveObject()} className="flex flex-col items-center disabled:opacity-50">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4M4 7h16" />
+              </svg>
+              <span className="text-xs mt-1">Delete</span>
             </button>
             <button onClick={() => setShowGrid(!showGrid)} className="flex flex-col items-center">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1200,99 +1343,785 @@ export default function DesignContent() {
               </div>
             </div>
           )}
-        </div>
 
-        {/* Right Sidebar (Design Properties) */}
-        <div className="hidden md:block w-64 bg-white p-4 shadow-md overflow-y-auto">
-          <h2 className="text-lg font-bold mb-4">Design</h2>
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-semibold">Size</h3>
-              <p className="text-sm text-gray-600">Flyer (US Letter) 8.5in x 11in</p>
-              <select
-                value={designCategory}
-                onChange={(e) => handleCategoryChange(e.target.value)}
-                className="border p-1 rounded w-full mt-1"
+          {/* Mobile Text Editing Panel */}
+          {activeTab === 'Text' && (
+            <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
+              <div className="bg-white p-4 w-64 h-full overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-bold">Edit Text</h2>
+                  <button onClick={() => setActiveTab(null)} className="text-gray-600">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold">Styles</h3>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => addText('Heading')}
+                        className="p-2 bg-gray-200 rounded hover:bg-gray-300"
+                      >
+                        Heading
+                      </button>
+                      <button
+                        onClick={() => addText('Subheading')}
+                        className="p-2 bg-gray-200 rounded hover:bg-gray-300"
+                      >
+                        Subheading
+                      </button>
+                      <button
+                        onClick={() => addText('Body')}
+                        className="p-2 bg-gray-200 rounded hover:bg-gray-300"
+                      >
+                        Body
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Font</h3>
+                    <select
+                      value={textStyles.fontFamily}
+                      onChange={(e) => setTextStyles({ ...textStyles, fontFamily: e.target.value })}
+                      className="border p-1 rounded w-full"
+                    >
+                      <option value="Arial">Arial</option>
+                      <option value="Times New Roman">Times New Roman</option>
+                      <option value="Helvetica">Helvetica</option>
+                      <option value="Raleway">Raleway</option>
+                    </select>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setTextStyles({ ...textStyles, fontWeight: textStyles.fontWeight === 'bold' ? 'normal' : 'bold' })}
+                      className={`p-1 ${textStyles.fontWeight === 'bold' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4h-2a2 2 0 00-2 2v12a2 2 0 002 2h2a2 2 0 002-2v-5a2 2 0 00-2-2h-2m4-3h2a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setTextStyles({ ...textStyles, fontStyle: textStyles.fontStyle === 'italic' ? 'normal' : 'italic' })}
+                      className={`p-1 ${textStyles.fontStyle === 'italic' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5h6l-6 14H3" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setShowFeaturePopup(true)}
+                      className="p-1 bg-gray-200"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h14M5 12l4-4m-4 4l4 4" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Size</h3>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, fontSize: Math.max(8, textStyles.fontSize - 1) })}
+                        className="p-1 bg-gray-200 rounded"
+                      >
+                        -
+                      </button>
+                      <span>{textStyles.fontSize}</span>
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, fontSize: textStyles.fontSize + 1 })}
+                        className="p-1 bg-gray-200 rounded"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Color</h3>
+                    <input
+                      type="color"
+                      value={textStyles.fill}
+                      onChange={(e) => setTextStyles({ ...textStyles, fill: e.target.value })}
+                      className="w-full h-10"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Opacity</h3>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, opacity: Math.max(0, textStyles.opacity - 0.1) })}
+                        className="p-1 bg-gray-200 rounded"
+                      >
+                        -
+                      </button>
+                      <span>{Math.round(textStyles.opacity * 100)}</span>
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, opacity: Math.min(1, textStyles.opacity + 0.1) })}
+                        className="p-1 bg-gray-200 rounded"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Alignment</h3>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, textAlign: 'left' })}
+                        className={`p-1 ${textStyles.textAlign === 'left' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h12M4 14h16M4 18h12" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, textAlign: 'center' })}
+                        className={`p-1 ${textStyles.textAlign === 'center' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M6 10h12M4 14h16M6 18h12" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, textAlign: 'right' })}
+                        className={`p-1 ${textStyles.textAlign === 'right' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M8 10h12M4 14h16M8 18h12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Vertical Alignment</h3>
+                    <div className="flex space-x-2">
+                      <button onClick={() => setShowFeaturePopup(true)} className="p-1 bg-gray-200">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m-8-8h16" />
+                        </svg>
+                      </button>
+                      <button onClick={() => setShowFeaturePopup(true)} className="p-1 bg-gray-200">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 12v8m-8-8h16" />
+                        </svg>
+                      </button>
+                      <button onClick={() => setShowFeaturePopup(true)} className="p-1 bg-gray-200">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v8m-8-4h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Line Height</h3>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, lineHeight: Math.max(0.5, textStyles.lineHeight - 0.1) })}
+                        className="p-1 bg-gray-200 rounded"
+                      >
+                        -
+                      </button>
+                      <span>{textStyles.lineHeight.toFixed(1)}</span>
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, lineHeight: textStyles.lineHeight + 0.1 })}
+                        className="p-1 bg-gray-200 rounded"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Letter Spacing</h3>
+                    <div className="flex items-center space-x-2"><button
+                            onClick={() => setTextStyles({ ...textStyles, charSpacing: Math.max(-100, textStyles.charSpacing - 10) })}
+                            className="p-1 bg-gray-200 rounded"
+                          >
+                            -
+                          </button>
+                          <span>{textStyles.charSpacing}</span>
+                          <button
+                            onClick={() => setTextStyles({ ...textStyles, charSpacing: textStyles.charSpacing + 10 })}
+                            className="p-1 bg-gray-200 rounded"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Central Canvas */}
+            <div className="flex-1 p-4 flex justify-center items-center bg-gray-200 relative">
+              <div
+                className="overflow-auto"
+                style={{
+                  width: `${canvasSize.width * zoom}px`,
+                  height: `${canvasSize.height * zoom}px`,
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                }}
               >
-                {Object.keys(designCategories).map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
+                <canvas ref={canvasRef} className="border shadow-lg" />
+              </div>
+
+              {/* Mobile Bottom Toolbar */}
+              <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white p-2 flex justify-around items-center shadow-lg">
+                <button
+                  onClick={() => setIsAddMenuOpen(true)}
+                  className="flex flex-col items-center text-blue-500"
+                >
+                  <div className="bg-blue-500 text-white rounded-full p-2">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                  </div>
+                  <span className="text-xs mt-1">Add</span>
+                </button>
+                <button onClick={() => setShowCustomDimensions(true)} className="flex flex-col items-center">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h8m-4-4v8m-4 4h8" />
+                  </svg>
+                  <span className="text-xs mt-1">Resize</span>
+                </button>
+                <button onClick={() => setActiveTab('Background')} className="flex flex-col items-center">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4h16v16H4z" />
+                  </svg>
+                  <span className="text-xs mt-1">Background</span>
+                </button>
+                <button onClick={() => setActiveTab('Text')} className="flex flex-col items-center">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5h6m-6 4h6m-6 4h6" />
+                  </svg>
+                  <span className="text-xs mt-1">Title</span>
+                </button>
+                <button onClick={deleteSelectedElement} disabled={!canvas || !canvas.getActiveObject()} className="flex flex-col items-center disabled:opacity-50">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4M4 7h16" />
+                  </svg>
+                  <span className="text-xs mt-1">Delete</span>
+                </button>
+                <button onClick={() => setShowGrid(!showGrid)} className="flex flex-col items-center">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                  <span className="text-xs mt-1">Grid</span>
+                </button>
+                <button onClick={() => setShowFolds(!showFolds)} className="flex flex-col items-center">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                  <span className="text-xs mt-1">Folds</span>
+                </button>
+                <button onClick={() => setShowBleed(!showBleed)} className="flex flex-col items-center">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4h16v16H4z" />
+                  </svg>
+                  <span className="text-xs mt-1">Bleed</span>
+                </button>
+              </div>
+
+              {/* Mobile Add Menu */}
+              {isAddMenuOpen && (
+                <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <div className="bg-white p-4 rounded-lg w-full max-w-sm">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-lg font-bold">Add</h2>
+                      <button onClick={() => setIsAddMenuOpen(false)} className="text-gray-600">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="space-y-4">
+                      {[
+                        { name: 'My Uploads', icon: 'M3 16h18M3 12h18m0 0l-9-9m9 9l-9 9', desc: 'Add from My Uploads, Google Drive, and more' },
+                        { name: 'Templates', icon: 'M4 5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V5z', desc: 'Explore templates for your design' },
+                        { name: 'Media', icon: 'M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z', desc: 'Add photos, videos, elements, and audio' },
+                        { name: 'Text', icon: 'M9 5h6m-6 4h6m-6 4h6', desc: 'Choose from a variety of text styles' },
+                        { name: 'AI', icon: 'M12 2a10 10 0 00-7.35 16.65M12 2a10 10 0 017.35 16.65M12 2v20', desc: 'Transform your ideas with AI' },
+                        { name: 'Record', icon: 'M3 12h18M12 3v18', desc: 'Capture photos, videos, or audio' },
+                        { name: 'Slideshow', icon: 'M15 5l5 5m0 0l-5 5m5-5H5', desc: 'Create text, photo, and video slideshows' },
+                        { name: 'Draw', icon: 'M15 5l5 5m0 0l-5 5m5-5H5', desc: 'Use a free-hand drawing tool' },
+                        { name: 'Layout', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16', desc: 'Add schedules, menus, tables, and more' },
+                      ].map((tab) => (
+                        <div
+                          key={tab.name}
+                          className="p-2 rounded cursor-pointer hover:bg-gray-100"
+                          onClick={() => {
+                            setActiveTab(tab.name);
+                            setIsAddMenuOpen(false);
+                          }}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} />
+                            </svg>
+                            <div>
+                              <h3 className="font-semibold">{tab.name}</h3>
+                              <p className="text-sm text-gray-600">{tab.desc}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Mobile Text Editing Panel */}
+              {activeTab === 'Text' && (
+                <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
+                  <div className="bg-white p-4 w-64 h-full overflow-y-auto">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-lg font-bold">Edit Text</h2>
+                      <button onClick={() => setActiveTab(null)} className="text-gray-600">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="font-semibold">Styles</h3>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => addText('Heading')}
+                            className="p-2 bg-gray-200 rounded hover:bg-gray-300"
+                          >
+                            Heading
+                          </button>
+                          <button
+                            onClick={() => addText('Subheading')}
+                            className="p-2 bg-gray-200 rounded hover:bg-gray-300"
+                          >
+                            Subheading
+                          </button>
+                          <button
+                            onClick={() => addText('Body')}
+                            className="p-2 bg-gray-200 rounded hover:bg-gray-300"
+                          >
+                            Body
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Font</h3>
+                        <select
+                          value={textStyles.fontFamily}
+                          onChange={(e) => setTextStyles({ ...textStyles, fontFamily: e.target.value })}
+                          className="border p-1 rounded w-full"
+                        >
+                          <option value="Arial">Arial</option>
+                          <option value="Times New Roman">Times New Roman</option>
+                          <option value="Helvetica">Helvetica</option>
+                          <option value="Raleway">Raleway</option>
+                        </select>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => setTextStyles({ ...textStyles, fontWeight: textStyles.fontWeight === 'bold' ? 'normal' : 'bold' })}
+                          className={`p-1 ${textStyles.fontWeight === 'bold' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4h-2a2 2 0 00-2 2v12a2 2 0 002 2h2a2 2 0 002-2v-5a2 2 0 00-2-2h-2m4-3h2a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => setTextStyles({ ...textStyles, fontStyle: textStyles.fontStyle === 'italic' ? 'normal' : 'italic' })}
+                          className={`p-1 ${textStyles.fontStyle === 'italic' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5h6l-6 14H3" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => setShowFeaturePopup(true)}
+                          className="p-1 bg-gray-200"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h14M5 12l4-4m-4 4l4 4" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Size</h3>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => setTextStyles({ ...textStyles, fontSize: Math.max(8, textStyles.fontSize - 1) })}
+                            className="p-1 bg-gray-200 rounded"
+                          >
+                            -
+                          </button>
+                          <span>{textStyles.fontSize}</span>
+                          <button
+                            onClick={() => setTextStyles({ ...textStyles, fontSize: textStyles.fontSize + 1 })}
+                            className="p-1 bg-gray-200 rounded"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Color</h3>
+                        <input
+                          type="color"
+                          value={textStyles.fill}
+                          onChange={(e) => setTextStyles({ ...textStyles, fill: e.target.value })}
+                          className="w-full h-10"
+                        />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Opacity</h3>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => setTextStyles({ ...textStyles, opacity: Math.max(0, textStyles.opacity - 0.1) })}
+                            className="p-1 bg-gray-200 rounded"
+                          >
+                            -
+                          </button>
+                          <span>{Math.round(textStyles.opacity * 100)}</span>
+                          <button
+                            onClick={() => setTextStyles({ ...textStyles, opacity: Math.min(1, textStyles.opacity + 0.1) })}
+                            className="p-1 bg-gray-200 rounded"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Alignment</h3>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => setTextStyles({ ...textStyles, textAlign: 'left' })}
+                            className={`p-1 ${textStyles.textAlign === 'left' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h12M4 14h16M4 18h12" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => setTextStyles({ ...textStyles, textAlign: 'center' })}
+                            className={`p-1 ${textStyles.textAlign === 'center' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M6 10h12M4 14h16M6 18h12" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => setTextStyles({ ...textStyles, textAlign: 'right' })}
+                            className={`p-1 ${textStyles.textAlign === 'right' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M8 10h12M4 14h16M8 18h12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Vertical Alignment</h3>
+                        <div className="flex space-x-2">
+                          <button onClick={() => setShowFeaturePopup(true)} className="p-1 bg-gray-200">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m-8-8h16" />
+                            </svg>
+                          </button>
+                          <button onClick={() => setShowFeaturePopup(true)} className="p-1 bg-gray-200">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 12v8m-8-8h16" />
+                            </svg>
+                          </button>
+                          <button onClick={() => setShowFeaturePopup(true)} className="p-1 bg-gray-200">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v8m-8-4h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Line Height</h3>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => setTextStyles({ ...textStyles, lineHeight: Math.max(0.5, textStyles.lineHeight - 0.1) })}
+                            className="p-1 bg-gray-200 rounded"
+                          >
+                            -
+                          </button>
+                          <span>{textStyles.lineHeight.toFixed(1)}</span>
+                          <button
+                            onClick={() => setTextStyles({ ...textStyles, lineHeight: textStyles.lineHeight + 0.1 })}
+                            className="p-1 bg-gray-200 rounded"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Letter Spacing</h3>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => setTextStyles({ ...textStyles, charSpacing: Math.max(-100, textStyles.charSpacing - 10) })}
+                            className="p-1 bg-gray-200 rounded"
+                          >
+                            -
+                          </button>
+                          <span>{textStyles.charSpacing}</span>
+                          <button
+                            onClick={() => setTextStyles({ ...textStyles, charSpacing: textStyles.charSpacing + 10 })}
+                            className="p-1 bg-gray-200 rounded"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <div>
-              <h3 className="font-semibold">Background</h3>
-              <select className="border p-1 rounded w-full mt-1">
-                <option>Solid Color</option>
-              </select>
-              <label className="block mt-2">
-                Color:
+
+            {/* Right Sidebar (Text Editing Panel for Desktop) */}
+            {selectedElement && selectedElement.type === 'textbox' && (
+              <div className="hidden md:block w-64 bg-white p-4 shadow-md overflow-y-auto">
+                <h2 className="text-lg font-bold mb-4">Edit Text</h2>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold">Styles</h3>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => addText('Heading')}
+                        className="p-2 bg-gray-200 rounded hover:bg-gray-300"
+                      >
+                        Heading
+                      </button>
+                      <button
+                        onClick={() => addText('Subheading')}
+                        className="p-2 bg-gray-200 rounded hover:bg-gray-300"
+                      >
+                        Subheading
+                      </button>
+                      <button
+                        onClick={() => addText('Body')}
+                        className="p-2 bg-gray-200 rounded hover:bg-gray-300"
+                      >
+                        Body
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Font</h3>
+                    <select
+                      value={textStyles.fontFamily}
+                      onChange={(e) => setTextStyles({ ...textStyles, fontFamily: e.target.value })}
+                      className="border p-1 rounded w-full"
+                    >
+                      <option value="Arial">Arial</option>
+                      <option value="Times New Roman">Times New Roman</option>
+                      <option value="Helvetica">Helvetica</option>
+                      <option value="Raleway">Raleway</option>
+                    </select>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setTextStyles({ ...textStyles, fontWeight: textStyles.fontWeight === 'bold' ? 'normal' : 'bold' })}
+                      className={`p-1 ${textStyles.fontWeight === 'bold' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4h-2a2 2 0 00-2 2v12a2 2 0 002 2h2a2 2 0 002-2v-5a2 2 0 00-2-2h-2m4-3h2a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setTextStyles({ ...textStyles, fontStyle: textStyles.fontStyle === 'italic' ? 'normal' : 'italic' })}
+                      className={`p-1 ${textStyles.fontStyle === 'italic' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5h6l-6 14H3" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setShowFeaturePopup(true)}
+                      className="p-1 bg-gray-200"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h14M5 12l4-4m-4 4l4 4" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Size</h3>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, fontSize: Math.max(8, textStyles.fontSize - 1) })}
+                        className="p-1 bg-gray-200 rounded"
+                      >
+                        -
+                      </button>
+                      <span>{textStyles.fontSize}</span>
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, fontSize: textStyles.fontSize + 1 })}
+                        className="p-1 bg-gray-200 rounded"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Color</h3>
+                    <input
+                      type="color"
+                      value={textStyles.fill}
+                      onChange={(e) => setTextStyles({ ...textStyles, fill: e.target.value })}
+                      className="w-full h-10"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Opacity</h3>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, opacity: Math.max(0, textStyles.opacity - 0.1) })}
+                        className="p-1 bg-gray-200 rounded"
+                      >
+                        -
+                      </button>
+                      <span>{Math.round(textStyles.opacity * 100)}</span>
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, opacity: Math.min(1, textStyles.opacity + 0.1) })}
+                        className="p-1 bg-gray-200 rounded"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Alignment</h3>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, textAlign: 'left' })}
+                        className={`p-1 ${textStyles.textAlign === 'left' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h12M4 14h16M4 18h12" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, textAlign: 'center' })}
+                        className={`p-1 ${textStyles.textAlign === 'center' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M6 10h12M4 14h16M6 18h12" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, textAlign: 'right' })}
+                        className={`p-1 ${textStyles.textAlign === 'right' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M8 10h12M4 14h16M8 18h12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Vertical Alignment</h3>
+                    <div className="flex space-x-2">
+                      <button onClick={() => setShowFeaturePopup(true)} className="p-1 bg-gray-200">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m-8-8h16" />
+                        </svg>
+                      </button>
+                      <button onClick={() => setShowFeaturePopup(true)} className="p-1 bg-gray-200">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 12v8m-8-8h16" />
+                        </svg>
+                      </button>
+                      <button onClick={() => setShowFeaturePopup(true)} className="p-1 bg-gray-200">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v8m-8-4h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Line Height</h3>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, lineHeight: Math.max(0.5, textStyles.lineHeight - 0.1) })}
+                        className="p-1 bg-gray-200 rounded"
+                      >
+                        -
+                      </button>
+                      <span>{textStyles.lineHeight.toFixed(1)}</span>
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, lineHeight: textStyles.lineHeight + 0.1 })}
+                        className="p-1 bg-gray-200 rounded"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Letter Spacing</h3>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, charSpacing: Math.max(-100, textStyles.charSpacing - 10) })}
+                        className="p-1 bg-gray-200 rounded"
+                      >
+                        -
+                      </button>
+                      <span>{textStyles.charSpacing}</span>
+                      <button
+                        onClick={() => setTextStyles({ ...textStyles, charSpacing: textStyles.charSpacing + 10 })}
+                        className="p-1 bg-gray-200 rounded"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Toolbar (Zoom and Toggles for Desktop) */}
+          <div className="hidden md:flex justify-center items-center p-2 bg-white shadow-md">
+            <div className="flex space-x-4">
+              <div className="flex items-center space-x-2">
+                <span>Zoom:</span>
                 <input
-                  type="color"
-                  value={backgroundColor}
-                  onChange={(e) => setBackgroundColor(e.target.value)}
-                  className="w-full h-10 mt-1"
+                  type="range"
+                  min="0.1"
+                  max="2"
+                  step="0.1"
+                  value={zoom}
+                  onChange={(e) => handleZoom(parseFloat(e.target.value))}
+                  className="w-32"
                 />
-              </label>
-            </div>
-            <div>
-              <h3 className="font-semibold">Title</h3>
-              <input
-                type="text"
-                value={designTitle}
-                onChange={(e) => setDesignTitle(e.target.value)}
-                className="border p-1 rounded w-full mt-1"
-              />
-            </div>
-            <div>
-              <h3 className="font-semibold">Layout</h3>
-              <div className="flex justify-between items-center mt-2">
+                <span>{(zoom * 100).toFixed(0)}%</span>
+              </div>
+              <button onClick={() => setShowGrid(!showGrid)} className="flex items-center space-x-1">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
                 <span>Grid</span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={showGrid}
-                    onChange={() => setShowGrid(!showGrid)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-500">
-                    <div className={`w-5 h-5 bg-white rounded-full transform transition-transform ${showGrid ? 'translate-x-5' : 'translate-x-0'}`}></div>
-                  </div>
-                </label>
-              </div>
-              <div className="flex justify-between items-center mt-2">
+              </button>
+              <button onClick={() => setShowFolds(!showFolds)} className="flex items-center space-x-1">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
                 <span>Folds</span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={showFolds}
-                    onChange={() => setShowFolds(!showFolds)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-500">
-                    <div className={`w-5 h-5 bg-white rounded-full transform transition-transform ${showFolds ? 'translate-x-5' : 'translate-x-0'}`}></div>
-                  </div>
-                </label>
-              </div>
-              <div className="flex justify-between items-center mt-2">
+              </button>
+              <button onClick={() => setShowBleed(!showBleed)} className="flex items-center space-x-1">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4h16v16H4z" />
+                </svg>
                 <span>Bleed</span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={showBleed}
-                    onChange={() => setShowBleed(!showBleed)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-500">
-                    <div className={`w-5 h-5 bg-white rounded-full transform transition-transform ${showBleed ? 'translate-x-5' : 'translate-x-0'}`}></div>
-                  </div>
-                </label>
-              </div>
+              </button>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
+      );
+    }

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { fabric } from 'fabric';
-import { templates } from '../components/TemplateSelector'; // Import templates from TemplateSelector
+import { templates } from '../components/TemplateSelector';
 
 export default function DesignContent() {
   const { data: session, status } = useSession();
@@ -24,16 +24,14 @@ export default function DesignContent() {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [activeTab, setActiveTab] = useState('Templates');
   const [designCategory, setDesignCategory] = useState('Poster Flyer Letter');
-  const [canvasSize, setCanvasSize] = useState(null);
+  const [canvasSize, setCanvasSize] = useState({ width: 816, height: 1056 });
   const [zoom, setZoom] = useState(1);
   const [uploadedImages, setUploadedImages] = useState([]);
   const [customDimensions, setCustomDimensions] = useState({ width: 816, height: 1056 });
   const [showCustomDimensions, setShowCustomDimensions] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isCanvasRefReady, setIsCanvasRefReady] = useState(false);
   const [showTools, setShowTools] = useState(true);
-  const [showProperties, setShowProperties] = useState(true);
   const [designTitle, setDesignTitle] = useState('A New Design');
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
@@ -47,10 +45,8 @@ export default function DesignContent() {
     'Event Flyer': { width: 800, height: 1200 },
     'Business Poster': { width: 800, height: 1200 },
     'Social Media Graphic': { width: 1080, height: 1080 },
-    'Custom': { width: 816, height: 1056 }, // Added Custom category
+    'Custom': { width: 816, height: 1056 },
   }), []);
-
-  const fontFamilies = ['Arial', 'Roboto', 'Times New Roman', 'Helvetica', 'Georgia'];
 
   // Handle redirect if no category is specified
   useEffect(() => {
@@ -63,6 +59,7 @@ export default function DesignContent() {
   // Set category and canvas size
   useEffect(() => {
     const category = searchParams.get('category') || 'Poster Flyer Letter';
+    console.log('Setting design category:', category);
     setDesignCategory(category);
 
     let size;
@@ -73,29 +70,25 @@ export default function DesignContent() {
       setShowCustomDimensions(false);
       size = designCategories[category] || { width: 816, height: 1056 };
     }
+    console.log('Setting canvas size:', size);
     setCanvasSize(size);
   }, [searchParams, customDimensions, designCategories]);
 
-  // Track when canvasRef.current is ready
-  useEffect(() => {
-    if (canvasRef.current) {
-      setIsCanvasRefReady(true);
-    }
-  }, [canvasRef.current]);
-
   // Initialize canvas
   useEffect(() => {
-    if (!fabric || !fabric.Canvas || !isCanvasRefReady || !canvasSize?.width || !canvasSize?.height) {
+    if (!fabric || !fabric.Canvas || !canvasRef.current || !canvasSize?.width || !canvasSize?.height) {
       console.log('Skipping canvas initialization due to missing dependencies:', {
         fabric: !!fabric,
         fabricCanvas: fabric?.Canvas,
         canvasRef: !!canvasRef.current,
-        isCanvasRefReady,
         canvasSize,
       });
+      setError('Failed to initialize canvas. Please refresh the page.');
+      setIsLoading(false);
       return;
     }
 
+    console.log('Initializing canvas with size:', canvasSize);
     const fabricCanvas = new fabric.Canvas(canvasRef.current, {
       height: canvasSize.height,
       width: canvasSize.width,
@@ -119,13 +112,17 @@ export default function DesignContent() {
 
     setCanvas(fabricCanvas);
 
+    // Add detailed logging for selection events
     fabricCanvas.on('selection:created', (e) => {
+      console.log('Selection created:', e.target);
       setSelectedElement(e.target);
     });
     fabricCanvas.on('selection:updated', (e) => {
+      console.log('Selection updated:', e.target);
       setSelectedElement(e.target);
     });
     fabricCanvas.on('selection:cleared', () => {
+      console.log('Selection cleared');
       setSelectedElement(null);
     });
 
@@ -136,6 +133,7 @@ export default function DesignContent() {
       newHistory.push(state);
       setHistory(newHistory);
       setHistoryIndex(newHistory.length - 1);
+      console.log('Object modified, history updated:', newHistory);
     });
 
     setIsLoading(false);
@@ -147,7 +145,7 @@ export default function DesignContent() {
       }
       setCanvas(null);
     };
-  }, [canvasSize, isCanvasRefReady]);
+  }, [canvasSize]);
 
   // Add a timeout to handle loading failures
   useEffect(() => {
@@ -161,9 +159,51 @@ export default function DesignContent() {
     return () => clearTimeout(timeout);
   }, [isLoading]);
 
+  // Add keyboard event listener for deleting elements
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      console.log('Key pressed:', e.key); // Log all key presses
+      if (e.key === 'Delete' && canvas && !canvas._disposed) {
+        console.log('Delete key pressed, checking for active object...');
+        const activeObject = canvas.getActiveObject();
+        const activeObjects = canvas.getActiveObjects();
+        console.log('Active object:', activeObject);
+        console.log('Active objects (multi-select):', activeObjects);
+        console.log('Selected element state:', selectedElement);
+
+        if (activeObjects.length > 0) {
+          activeObjects.forEach((obj) => {
+            console.log('Removing object:', obj);
+            canvas.remove(obj);
+          });
+          canvas.discardActiveObject();
+          setSelectedElement(null);
+          canvas.renderAll();
+
+          // Update history after deletion
+          const state = JSON.stringify(canvas.toJSON());
+          const newHistory = history.slice(0, historyIndex + 1);
+          newHistory.push(state);
+          setHistory(newHistory);
+          setHistoryIndex(newHistory.length - 1);
+          console.log('History updated after deletion:', newHistory);
+        } else {
+          console.log('No active objects to delete');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [canvas, selectedElement, history, historyIndex]);
+
   // Update canvas background color
   useEffect(() => {
     if (canvas && !canvas._disposed) {
+      console.log('Updating background color to:', backgroundColor);
       canvas.backgroundColor = backgroundColor;
       canvas.renderAll();
     }
@@ -172,6 +212,7 @@ export default function DesignContent() {
   // Handle Grid toggle
   useEffect(() => {
     if (!canvas || canvas._disposed) return;
+    console.log('Toggling grid:', showGrid);
     canvas.getObjects().forEach((obj) => {
       if (obj.type === 'line' && obj.gridLine) {
         canvas.remove(obj);
@@ -203,6 +244,7 @@ export default function DesignContent() {
   // Handle Folds
   useEffect(() => {
     if (!canvas || canvas._disposed) return;
+    console.log('Toggling folds:', showFolds);
     canvas.getObjects().forEach((obj) => {
       if (obj.type === 'line' && obj.foldLine) {
         canvas.remove(obj);
@@ -233,6 +275,7 @@ export default function DesignContent() {
   // Handle Bleed
   useEffect(() => {
     if (!canvas || canvas._disposed) return;
+    console.log('Toggling bleed:', showBleed);
     canvas.getObjects().forEach((obj) => {
       if (obj.type === 'rect' && obj.bleedArea) {
         canvas.remove(obj);
@@ -260,6 +303,7 @@ export default function DesignContent() {
   // Handle Drawing Mode
   useEffect(() => {
     if (!canvas || canvas._disposed) return;
+    console.log('Toggling drawing mode:', isDrawingMode);
     canvas.isDrawingMode = isDrawingMode;
     if (isDrawingMode) {
       canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
@@ -269,6 +313,7 @@ export default function DesignContent() {
   }, [isDrawingMode, canvas]);
 
   const handleCategoryChange = (category) => {
+    console.log('Changing category to:', category);
     setDesignCategory(category);
     if (category === 'Custom') {
       setShowCustomDimensions(true);
@@ -281,12 +326,17 @@ export default function DesignContent() {
   };
 
   const handleCustomDimensionsChange = () => {
+    console.log('Applying custom dimensions:', customDimensions);
     setCanvasSize({ width: customDimensions.width, height: customDimensions.height });
     setShowCustomDimensions(false);
   };
 
   const loadTemplate = useCallback((template) => {
-    if (!canvas || !fabric || canvas._disposed) return;
+    if (!canvas || !fabric || canvas._disposed) {
+      console.error('Cannot load template: Canvas not initialized');
+      return;
+    }
+    console.log('Loading template:', template);
     canvas.clear();
     template.elements.forEach((el) => {
       if (el.type === 'text') {
@@ -309,7 +359,7 @@ export default function DesignContent() {
           img.scale(el.scale || 0.5);
           canvas.add(img);
           canvas.renderAll();
-        });
+        }, { crossOrigin: 'anonymous' });
       } else if (el.type === 'rect') {
         const rect = new fabric.Rect({
           left: el.left,
@@ -367,7 +417,11 @@ export default function DesignContent() {
   }, [canvas, fabric]);
 
   const addText = (style = 'Body') => {
-    if (!canvas || !fabric || canvas._disposed) return;
+    if (!canvas || !fabric || canvas._disposed) {
+      console.error('Cannot add text: Canvas not initialized');
+      return;
+    }
+    console.log('Adding text with style:', style);
     const styles = {
       Heading: { fontSize: 40, fontWeight: 'bold', textAlign: 'center' },
       Subheading: { fontSize: 30, fontWeight: 'normal', textAlign: 'center' },
@@ -391,9 +445,16 @@ export default function DesignContent() {
   };
 
   const addImage = (e) => {
-    if (!canvas || !fabric || canvas._disposed) return;
+    if (!canvas || !fabric || canvas._disposed) {
+      console.error('Cannot add image: Canvas not initialized');
+      return;
+    }
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+      console.log('No file selected');
+      return;
+    }
+    console.log('Adding image:', file.name);
     const reader = new FileReader();
     reader.onload = (f) => {
       const data = f.target.result;
@@ -405,13 +466,17 @@ export default function DesignContent() {
         canvas.setActiveObject(img);
         canvas.renderAll();
         setUploadedImages([...uploadedImages, data]);
-      });
+      }, { crossOrigin: 'anonymous' });
     };
     reader.readAsDataURL(file);
   };
 
   const addUploadedImage = (src) => {
-    if (!canvas || !fabric || canvas._disposed) return;
+    if (!canvas || !fabric || canvas._disposed) {
+      console.error('Cannot add uploaded image: Canvas not initialized');
+      return;
+    }
+    console.log('Adding uploaded image:', src);
     fabric.Image.fromURL(src, (img) => {
       if (canvas._disposed) return;
       img.scale(0.5);
@@ -419,13 +484,20 @@ export default function DesignContent() {
       canvas.add(img);
       canvas.setActiveObject(img);
       canvas.renderAll();
-    });
+    }, { crossOrigin: 'anonymous' });
   };
 
   const addBackgroundImage = (e) => {
-    if (!canvas || canvas._disposed) return;
+    if (!canvas || canvas._disposed) {
+      console.error('Cannot add background image: Canvas not initialized');
+      return;
+    }
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+      console.log('No file selected for background');
+      return;
+    }
+    console.log('Adding background image:', file.name);
     const reader = new FileReader();
     reader.onload = (f) => {
       const data = f.target.result;
@@ -440,11 +512,13 @@ export default function DesignContent() {
 
   const removeBackground = () => {
     if (canvas && !canvas._disposed && canvas.backgroundImage) {
+      console.log('Removing background image');
       canvas.setBackgroundImage(null, canvas.renderAll.bind(canvas));
     }
   };
 
   const recordMedia = () => {
+    console.log('Simulating media capture');
     alert('Simulating media capture: A photo has been captured.');
     const placeholderImage = 'https://via.placeholder.com/150';
     fabric.Image.fromURL(placeholderImage, (img) => {
@@ -454,10 +528,11 @@ export default function DesignContent() {
       canvas.add(img);
       canvas.setActiveObject(img);
       canvas.renderAll();
-    });
+    }, { crossOrigin: 'anonymous' });
   };
 
   const addSlideshow = () => {
+    console.log('Adding slideshow slide');
     const newSlide = {
       id: slides.length + 1,
       elements: [],
@@ -468,6 +543,11 @@ export default function DesignContent() {
   };
 
   const addLayoutElement = (type) => {
+    if (!canvas || !fabric || canvas._disposed) {
+      console.error('Cannot add layout element: Canvas not initialized');
+      return;
+    }
+    console.log('Adding layout element:', type);
     const layoutText = type === 'schedule' ? 'Event Schedule\n9:00 AM - Opening\n10:00 AM - Keynote' : 'Menu\nAppetizer: Salad\nMain: Pasta';
     const textObj = new fabric.Textbox(layoutText, {
       left: 100,
@@ -484,6 +564,7 @@ export default function DesignContent() {
 
   const undo = () => {
     if (historyIndex > 0 && canvas && !canvas._disposed) {
+      console.log('Undoing action');
       const newIndex = historyIndex - 1;
       setHistoryIndex(newIndex);
       canvas.loadFromJSON(JSON.parse(history[newIndex]), canvas.renderAll.bind(canvas));
@@ -492,14 +573,49 @@ export default function DesignContent() {
 
   const redo = () => {
     if (historyIndex < history.length - 1 && canvas && !canvas._disposed) {
+      console.log('Redoing action');
       const newIndex = historyIndex + 1;
       setHistoryIndex(newIndex);
       canvas.loadFromJSON(JSON.parse(history[newIndex]), canvas.renderAll.bind(canvas));
     }
   };
 
+  const deleteSelectedElement = () => {
+    console.log('Delete button clicked, checking for active object...');
+    if (canvas && !canvas._disposed) {
+      const activeObject = canvas.getActiveObject();
+      const activeObjects = canvas.getActiveObjects();
+      console.log('Active object:', activeObject);
+      console.log('Active objects (multi-select):', activeObjects);
+      console.log('Selected element state:', selectedElement);
+
+      if (activeObjects.length > 0) {
+        activeObjects.forEach((obj) => {
+          console.log('Removing object:', obj);
+          canvas.remove(obj);
+        });
+        canvas.discardActiveObject();
+        setSelectedElement(null);
+        canvas.renderAll();
+
+        // Update history after deletion
+        const state = JSON.stringify(canvas.toJSON());
+        const newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push(state);
+        setHistory(newHistory);
+        setHistoryIndex(newHistory.length - 1);
+        console.log('History updated after deletion:', newHistory);
+      } else {
+        console.log('No active objects to delete');
+      }
+    } else {
+      console.log('Canvas not initialized or disposed');
+    }
+  };
+
   const saveDesign = () => {
     if (canvas && !canvas._disposed) {
+      console.log('Saving design');
       const designData = canvas.toJSON();
       localStorage.setItem('savedDesign', JSON.stringify(designData));
       alert('Design saved successfully!');
@@ -508,6 +624,7 @@ export default function DesignContent() {
 
   const downloadCanvas = (format = 'png') => {
     if (canvas && !canvas._disposed) {
+      console.log('Downloading canvas as', format);
       const url = canvas.toDataURL({
         format: format,
         quality: 1,
@@ -521,12 +638,14 @@ export default function DesignContent() {
 
   const publishDesign = () => {
     if (canvas && !canvas._disposed) {
+      console.log('Publishing design');
       const designData = canvas.toDataURL({ format: 'png', quality: 1 });
       alert('Design published! Share this link: [Placeholder URL]');
     }
   };
 
   const handleZoom = (value) => {
+    console.log('Setting zoom to:', value);
     setZoom(value);
     if (canvas && !canvas._disposed) {
       canvas.setZoom(value);
@@ -669,10 +788,7 @@ export default function DesignContent() {
       {/* Top Toolbar */}
       <div className="bg-blue-500 text-white p-2 flex justify-between items-center">
         <div className="flex items-center space-x-2">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-          </svg>
-          <span className="font-bold">PosterMyWall</span>
+          {/* Removed PosterMyWall label */}
         </div>
         <div className="flex items-center space-x-2">
           <button onClick={undo} disabled={historyIndex <= 0} className="p-1 disabled:opacity-50">
@@ -683,6 +799,15 @@ export default function DesignContent() {
           <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-1 disabled:opacity-50">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3" />
+            </svg>
+          </button>
+          <button
+            onClick={deleteSelectedElement}
+            disabled={!canvas || !canvas.getActiveObject()}
+            className="p-1 disabled:opacity-50"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4M4 7h16" />
             </svg>
           </button>
           <button onClick={saveDesign} className="p-1">

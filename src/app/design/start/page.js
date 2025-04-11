@@ -1,20 +1,45 @@
-// src/app/design/start/page.js
 "use client";
 
 import { useRouter } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
+import Image from 'next/image';
 
 export default function DesignStart() {
   const { data: session } = useSession();
   const router = useRouter();
 
-  // Define design categories and their dimensions
+  // Define design categories with dimensions and local image paths
   const designCategories = [
-    { name: 'Poster Flyer Letter', width: 816, height: 1056 }, // 8.5x11 inches at 96 DPI
-    { name: 'Instagram Reel Post', width: 1080, height: 1920 },
-    { name: 'Event Flyer', width: 800, height: 1200 },
-    { name: 'Business Poster', width: 800, height: 1200 },
-    { name: 'Social Media Graphic', width: 1080, height: 1080 },
+    {
+      name: 'Poster Flyer Letter',
+      width: 816,
+      height: 1056,
+      image: '/images/poster-flyer-letter.jpg', // Local image path
+    },
+    {
+      name: 'Instagram Reel Post',
+      width: 1080,
+      height: 1920,
+      image: '/images/instagram-reel-post.jpg', // Local image path
+    },
+    {
+      name: 'Event Flyer',
+      width: 800,
+      height: 1200,
+      image: '/images/event-flyer.jpg', // Local image path
+    },
+    {
+      name: 'Business Poster',
+      width: 800,
+      height: 1200,
+      image: '/images/business-poster.jpg', // Local image path
+    },
+    {
+      name: 'Social Media Graphic',
+      width: 1080,
+      height: 1080,
+      image: '/images/social-media-graphic.jpg', // Local image path
+    },
   ];
 
   const handleCategorySelect = (category) => {
@@ -52,10 +77,14 @@ export default function DesignStart() {
             onClick={() => handleCategorySelect(category)}
             className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg cursor-pointer transition-shadow duration-200 flex flex-col items-center"
           >
-            <div className="w-24 h-24 bg-gray-200 rounded-md mb-4 flex items-center justify-center">
-              <span className="text-gray-500 text-sm text-center">
-                {category.name}
-              </span>
+            <div className="w-24 h-24 rounded-md mb-4 overflow-hidden relative">
+              <Image
+                src={category.image}
+                alt={`${category.name} preview`}
+                layout="fill"
+                objectFit="cover"
+                className="hover:scale-105 transition-transform duration-200"
+              />
             </div>
             <h2 className="text-lg font-semibold">{category.name}</h2>
             <p className="text-gray-600 text-sm">
@@ -67,8 +96,14 @@ export default function DesignStart() {
           onClick={() => router.push('/design?category=Custom')}
           className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg cursor-pointer transition-shadow duration-200 flex flex-col items-center"
         >
-          <div className="w-24 h-24 bg-gray-200 rounded-md mb-4 flex items-center justify-center">
-            <span className="text-gray-500 text-sm text-center">Custom</span>
+          <div className="w-24 h-24 rounded-md mb-4 overflow-hidden relative">
+            <Image
+              src="/images/custom-dimensions-icon.png"
+              alt="Custom dimensions icon"
+              layout="fill"
+              objectFit="contain"
+              className="hover:scale-105 transition-transform duration-200"
+            />
           </div>
           <h2 className="text-lg font-semibold">Custom Dimensions</h2>
           <p className="text-gray-600 text-sm">Set your own size</p>

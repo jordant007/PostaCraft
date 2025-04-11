@@ -4,6 +4,7 @@
 import { useState, useRef } from 'react';
 import { DndContext, useDraggable } from '@dnd-kit/core';
 import { Resizable } from 'react-resizable';
+import Image from 'next/image'; // Import Image from next/image
 import html2canvas from 'html2canvas';
 import 'react-resizable/css/styles.css';
 
@@ -135,11 +136,14 @@ function DraggableElement({ element, onDragEnd, onClick, onResize, onRotate, onZ
           </span>
         )}
         {element.type === 'image' && (
-          <img
-            src={element.content}
-            alt="Poster element"
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }} // Ensure image scales properly
-          />
+          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            <Image
+              src={element.content}
+              alt="Poster element"
+              layout="fill"
+              objectFit="cover"
+            />
+          </div>
         )}
         {element.type === 'shape' && renderShape()}
         {element.id === selectedElement && (
